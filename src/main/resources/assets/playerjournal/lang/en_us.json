@@ -1,0 +1,29 @@
+{
+  "config.playerjournal.title": "Player Journal Configuration",
+  "config.playerjournal.category.vitality": "Vitality",
+  "config.playerjournal.levels_per_health_boost": "Levels Per Health Boost",
+  "config.playerjournal.base_xp_requirement": "Base XP Requirement",
+  "config.playerjournal.xp_multiplier": "XP Multiplier",
+  "config.playerjournal.xp_per_heart_healed": "XP Per Heart Healed",
+  "config.playerjournal.armor_restrictions": "Armor Tier Restrictions",
+  "config.playerjournal.potion_restrictions": "Potion Access Levels",
+  "config.playerjournal.item_restrictions": "Restricted Items List",
+  "config.jade.plugin_playerjournal.villager_restriction": "Show Villager Restrictions",
+  "config.jade.plugin_playerjournal.block_restriction": "Show Block Restrictions",
+  "config.jade.plugin_playerjournal.animal_breeding": "Show Animal Breeding Restrictions",
+  "item.playerjournal.farming_page": "Farming Page",
+  "item.playerjournal.mining_page": "Mining Page",
+  "item.playerjournal.smithing_page": "Smithing Page",
+  "item.playerjournal.archery_page": "Archery Page",
+  "item.playerjournal.fishing_page": "Fishing Page",
+  "item.playerjournal.torn_page": "Pages",
+
+  "effect.playerjournal.personal_xp_buff": "Personal XP Buff",
+  "effect.playerjournal.party_xp_buff": "Party XP Buff",
+  "effect.playerjournal.global_xp_buff": "Global XP Buff",
+  "block.playerjournal.knowledge_table": "Knowledge Table",
+  "item.playerjournal.knowledge_table": "Knowledge Table",
+  "item.playerjournal.book_of_knowledge": "Book of Knowledge",
+  "item.playerjournal.enchanted_knowledge": "Enchanted Knowledge"
+
+}
