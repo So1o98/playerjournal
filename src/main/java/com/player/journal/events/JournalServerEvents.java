@@ -2,6 +2,7 @@ package com.player.journal.events;
 
 import com.player.journal.config.JournalConfig;
 import com.player.journal.data.JournalProgressionData;
+import com.player.journal.data.RestrictionDataLoader;
 import com.player.journal.network.SyncJournalConfigPayload;
 import com.player.journal.network.SyncJournalDataPayload;
 import com.player.journal.party.PartyManager;
@@ -106,21 +107,26 @@ public class JournalServerEvents {
     public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
         globalBuffTimer++;
 
-        if (globalBuffTimer >= 12000) {
+
+        if (globalBuffTimer >= 72000) {
             globalBuffTimer = 0;
 
+
             if (event.getServer().overworld().random.nextFloat() < 0.20f) {
-                int durationTicks = 20 * 60 * 15; // 15 mins default for random wild buff
+                int durationTicks = 20 * 60 * 15;
+
+
+                globalBuffTimer = -durationTicks;
+
                 for (ServerPlayer p : event.getServer().getPlayerList().getPlayers()) {
                     try {
-
                         p.addEffect(new net.minecraft.world.effect.MobEffectInstance(
                                 com.player.journal.registry.ModEffects.GLOBAL_XP_BUFF, durationTicks, 0, false, false, true
                         ));
                     } catch (Exception e) { }
                 }
                 event.getServer().getPlayerList().broadcastSystemMessage(
-                        Component.literal("§6[Server] §Global XP Buff activated for 15 minutes!"), false
+                        Component.literal("§6[Server] §e Global XP Buff activated for 15 minutes!"), false
                 );
             }
         }
@@ -305,46 +311,9 @@ public class JournalServerEvents {
             );
             PacketDistributor.sendToPlayer(serverPlayer, payload);
 
-            @SuppressWarnings("unchecked")
-            SyncJournalConfigPayload configPayload = new SyncJournalConfigPayload(
-                    (List<String>) JournalConfig.ARMOR_RESTRICTIONS.get(),
-                    (List<String>) JournalConfig.POTION_RESTRICTIONS.get(),
-                    JournalConfig.getAllItemRestrictions(),
-                    (List<String>) JournalConfig.JEWELRY_RESTRICTIONS.get(),
-                    (List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get(),
-                    (List<String>) JournalConfig.PALADINS_PRIESTS_ARMORS.get(),
-                    (List<String>) JournalConfig.PALADINS_PRIESTS_WEAPONS.get(),
-                    (List<String>) JournalConfig.PALADINS_PRIESTS_SHIELDS.get(),
-                    (List<String>) JournalConfig.ROGUES_WARRIORS_ARMORS.get(),
-                    (List<String>) JournalConfig.ROGUES_WARRIORS_WEAPONS.get(),
-                    (List<String>) JournalConfig.ARCHERS_ARMORS.get(),
-                    (List<String>) JournalConfig.ARCHERS_WEAPONS.get(),
-                    (List<String>) JournalConfig.WIZARDS_ARMORS.get(),
-                    (List<String>) JournalConfig.WIZARDS_WEAPONS.get(),
-                    (List<String>) JournalConfig.ARSENAL_WEAPONS.get(),
-                    (List<String>) JournalConfig.ARTIFACTS_ITEMS.get(),
-                    (List<String>) JournalConfig.TIDE_ITEMS.get(),
-                    (List<String>) JournalConfig.GLIDERS_ITEMS.get(),
-                    (List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get(),
-                    (List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get(),
-                    (List<String>) JournalConfig.IMMERSIVE_AIRCRAFT_ITEMS.get(),
-                    (List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get(),
-                    (List<String>) JournalConfig.ALCHEMY_UTILITIES.get(),
-                    (List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get(),
-                    (List<String>) JournalConfig.AGILITY_MOUNTS.get(),
+            // Use the new helper method!
+            syncConfigToPlayer(serverPlayer);
 
-                    JournalConfig.XP_BASE_REQUIREMENT.get(), JournalConfig.XP_MULTIPLIER.get(),
-                    JournalConfig.AGILITY_XP_BASE_REQUIREMENT.get(), JournalConfig.AGILITY_XP_MULTIPLIER.get(),
-                    JournalConfig.COMBAT_XP_BASE_REQUIREMENT.get(), JournalConfig.COMBAT_XP_MULTIPLIER.get(),
-                    JournalConfig.DEFENSE_XP_BASE_REQUIREMENT.get(), JournalConfig.DEFENSE_XP_MULTIPLIER.get(),
-                    JournalConfig.FARMING_XP_BASE_REQUIREMENT.get(), JournalConfig.FARMING_XP_MULTIPLIER.get(),
-                    JournalConfig.MINING_XP_BASE_REQUIREMENT.get(), JournalConfig.MINING_XP_MULTIPLIER.get(),
-                    JournalConfig.SMITHING_XP_BASE_REQUIREMENT.get(), JournalConfig.SMITHING_XP_MULTIPLIER.get(),
-                    JournalConfig.ARCHERY_XP_BASE_REQUIREMENT.get(), JournalConfig.ARCHERY_XP_MULTIPLIER.get(),
-                    JournalConfig.FISHING_XP_BASE_REQUIREMENT.get(), JournalConfig.FISHING_XP_MULTIPLIER.get(),
-                    JournalConfig.ALCHEMY_XP_BASE_REQUIREMENT.get(), JournalConfig.ALCHEMY_XP_MULTIPLIER.get()
-            );
-            PacketDistributor.sendToPlayer(serverPlayer, configPayload);
             PacketDistributor.sendToPlayer(serverPlayer, new com.player.journal.network.SyncPartyPayload(new java.util.ArrayList<>()));
         }
     }
@@ -457,7 +426,7 @@ public class JournalServerEvents {
 
             if (!shieldStack.isEmpty()) {
                 String shieldId = BuiltInRegistries.ITEM.getKey(shieldStack.getItem()).toString();
-                String failMessage = getFailedRequirement(player, shieldId, JournalConfig.getAllItemRestrictions());
+                String failMessage = getFailedRequirementFromMap(player, shieldId);
 
                 if (failMessage == null) {
                     float blockedDamage = event.getBlockedDamage();
@@ -579,7 +548,7 @@ public class JournalServerEvents {
             ItemStack mainHand = attacker.getMainHandItem();
             if (!mainHand.isEmpty()) {
                 String itemIdentifier = BuiltInRegistries.ITEM.getKey(mainHand.getItem()).toString();
-                String failMessage = getFailedRequirement(attacker, itemIdentifier, JournalConfig.getAllItemRestrictions());
+                String failMessage = getFailedRequirementFromMap(attacker, itemIdentifier);
                 if (failMessage != null) {
                     event.setNewDamage(0);
                     return;
@@ -1012,6 +981,53 @@ public class JournalServerEvents {
         return null;
     }
 
+    public static String getFailedRequirementFromMap(ServerPlayer player, String itemIdentifier) {
+        if (player.isCreative() || player.isSpectator()) return null;
+
+        Map<String, Integer> requirements = RestrictionDataLoader.getItemRestrictions(itemIdentifier);
+
+        // --- THE FIX: If the item isn't in a Datapack, fall back and check the TOML Config! ---
+        if (requirements.isEmpty()) {
+            return getFailedRequirement(player, itemIdentifier, getAllConfigUsageRestrictions());
+        }
+
+        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        List<String> failedSkills = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> req : requirements.entrySet()) {
+            String skill = req.getKey().toLowerCase();
+            int requiredLevel = req.getValue();
+            int playerLevel = 0;
+
+            switch (skill) {
+                case "vitality" -> playerLevel = data.getVitalityLevel();
+                case "agility" -> playerLevel = data.getAgilityLevel();
+                case "combat" -> playerLevel = data.getCombatLevel();
+                case "defense" -> playerLevel = data.getDefenseLevel();
+                case "mining" -> playerLevel = data.getMiningLevel();
+                case "farming" -> playerLevel = data.getFarmingLevel();
+                case "smithing" -> playerLevel = data.getSmithingLevel();
+                case "fishing" -> playerLevel = data.getFishingLevel();
+                case "archery" -> playerLevel = data.getArcheryLevel();
+                case "alchemy" -> playerLevel = data.getAlchemyLevel();
+            }
+
+            if (playerLevel < requiredLevel) {
+                String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                if (requiredLevel == 1 && !skill.equals("vitality") && !skill.equals("agility") && !skill.equals("combat") && !skill.equals("defense") && !skill.equals("mining") && !skill.equals("farming") && !skill.equals("smithing")) {
+                    failedSkills.add(displaySkill + " Class");
+                } else {
+                    failedSkills.add(displaySkill + " " + requiredLevel);
+                }
+            }
+        }
+
+        if (!failedSkills.isEmpty()) {
+            return "Requires " + String.join(" & ", failedSkills) + "!";
+        }
+        return null;
+    }
+
     @SubscribeEvent
     public static void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
         if (!event.getEntity().level().isClientSide && event.getEntity() instanceof ServerPlayer player) {
@@ -1019,7 +1035,43 @@ public class JournalServerEvents {
             if (craftedItem.isEmpty()) return;
 
             String itemId = BuiltInRegistries.ITEM.getKey(craftedItem.getItem()).toString();
-            String failMessage = getFailedRequirement(player, itemId, JournalConfig.getAllCraftingRestrictions());
+            JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+
+            // 1. Check Datapack Requirements
+            Map<String, Integer> craftReqs = RestrictionDataLoader.getCraftingRestrictions(itemId);
+            List<String> failedSkills = new ArrayList<>();
+
+            if (!craftReqs.isEmpty()) {
+                for (Map.Entry<String, Integer> req : craftReqs.entrySet()) {
+                    String skill = req.getKey().toLowerCase();
+                    int requiredLevel = req.getValue();
+                    int playerLevel = switch (skill) {
+                        case "vitality" -> data.getVitalityLevel();
+                        case "agility" -> data.getAgilityLevel();
+                        case "combat" -> data.getCombatLevel();
+                        case "defense" -> data.getDefenseLevel();
+                        case "mining" -> data.getMiningLevel();
+                        case "farming" -> data.getFarmingLevel();
+                        case "smithing" -> data.getSmithingLevel();
+                        case "fishing" -> data.getFishingLevel();
+                        case "archery" -> data.getArcheryLevel();
+                        case "alchemy" -> data.getAlchemyLevel();
+                        default -> 0;
+                    };
+
+                    if (playerLevel < requiredLevel) {
+                        failedSkills.add(skill.substring(0, 1).toUpperCase() + skill.substring(1) + " " + requiredLevel);
+                    }
+                }
+            }
+
+            String failMessage = null;
+            if (!failedSkills.isEmpty()) {
+                failMessage = "Requires " + String.join(" & ", failedSkills) + " to craft!";
+            } else if (craftReqs.isEmpty()) {
+                // Fallback to old config if no datapack entry exists
+                failMessage = getFailedRequirement(player, itemId, JournalConfig.getAllCraftingRestrictions());
+            }
 
             if (failMessage != null) {
                 net.minecraft.world.item.Item itemToRemove = craftedItem.getItem();
@@ -1040,56 +1092,60 @@ public class JournalServerEvents {
                     }
                 }
                 player.level().playSound(null, player.blockPosition(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0F, 1.0F);
-                player.displayClientMessage(Component.literal("You lack the Smithing knowledge and ruined the materials!")
+                player.displayClientMessage(Component.literal("You lack the knowledge and ruined the materials!")
                         .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.BOLD), true);
             } else {
                 if (player.isCreative() || player.isSpectator()) return;
 
-                for (String restriction : JournalConfig.getAllCraftingRestrictions()) {
-                    String[] parts = restriction.split(";");
-                    if (parts.length == 3) {
-                        String[] groupedIds = parts[0].split(",");
-                        for (String id : groupedIds) {
-                            if (id.trim().equals(itemId)) {
-                                float xpReward = Float.parseFloat(parts[2].trim()) * craftedItem.getCount();
-                                if (xpReward > 0) {
-                                    JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+                // 2. Grant XP from Datapack
+                float xpReward = (float) RestrictionDataLoader.getCraftingXp(itemId) * craftedItem.getCount();
 
-                                    if (data.getSmithingLevel() >= 1) {
-                                        // Apply XP Buff!
-                                        float finalXp = xpReward * getXpMultiplier(player);
-
-                                        boolean leveledUp = data.addSmithingXP(finalXp, player);
-
-                                        SyncJournalDataPayload payload = new SyncJournalDataPayload(
-                                                data.getVitalityLevel(), data.getVitalityXP(),
-                                                data.getCombatLevel(), data.getCombatXP(),
-                                                data.getDefenseLevel(), data.getDefenseXP(),
-                                                data.getMiningLevel(), data.getMiningXP(),
-                                                data.getFarmingLevel(), data.getFarmingXP(),
-                                                data.getSmithingLevel(), data.getSmithingXP(),
-                                                data.getArcheryLevel(), data.getArcheryXP(),
-                                                data.getFishingLevel(), data.getFishingXP(),
-                                                data.getAgilityLevel(), data.getAgilityXP(),
-                                                data.getAlchemyLevel(), data.getAlchemyXP(),
-                                                data.getTornPages()
-                                        );
-                                        PacketDistributor.sendToPlayer(player, payload);
-
-                                        if (leveledUp) {
-                                            player.displayClientMessage(Component.literal("§6§lSmithing Level Up! §eYou are now level " + data.getSmithingLevel() + "!"), false);
-                                            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
-                                            clearCombo(player, "smithing");
-                                            checkAndBroadcastMilestone(player, "smithing", data.getSmithingLevel());
-                                        } else {
-                                            displayComboXp(player, "smithing", finalXp, net.minecraft.ChatFormatting.GRAY);
-                                        }
-                                        sharePartyXP(player, "smithing", finalXp);
-                                    }
+                // Fallback to Config XP if Datapack has none
+                if (xpReward <= 0) {
+                    for (String restriction : JournalConfig.getAllCraftingRestrictions()) {
+                        String[] parts = restriction.split(";");
+                        if (parts.length == 3) {
+                            String[] groupedIds = parts[0].split(",");
+                            for (String id : groupedIds) {
+                                if (id.trim().equals(itemId)) {
+                                    xpReward = Float.parseFloat(parts[2].trim()) * craftedItem.getCount();
+                                    break;
                                 }
-                                return;
                             }
                         }
+                    }
+                }
+
+                if (xpReward > 0) {
+                    if (data.getSmithingLevel() >= 1) {
+                        float finalXp = xpReward * getXpMultiplier(player);
+
+                        boolean leveledUp = data.addSmithingXP(finalXp, player);
+
+                        SyncJournalDataPayload payload = new SyncJournalDataPayload(
+                                data.getVitalityLevel(), data.getVitalityXP(),
+                                data.getCombatLevel(), data.getCombatXP(),
+                                data.getDefenseLevel(), data.getDefenseXP(),
+                                data.getMiningLevel(), data.getMiningXP(),
+                                data.getFarmingLevel(), data.getFarmingXP(),
+                                data.getSmithingLevel(), data.getSmithingXP(),
+                                data.getArcheryLevel(), data.getArcheryXP(),
+                                data.getFishingLevel(), data.getFishingXP(),
+                                data.getAgilityLevel(), data.getAgilityXP(),
+                                data.getAlchemyLevel(), data.getAlchemyXP(),
+                                data.getTornPages()
+                        );
+                        PacketDistributor.sendToPlayer(player, payload);
+
+                        if (leveledUp) {
+                            player.displayClientMessage(Component.literal("§6§lSmithing Level Up! §eYou are now level " + data.getSmithingLevel() + "!"), false);
+                            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
+                            clearCombo(player, "smithing");
+                            checkAndBroadcastMilestone(player, "smithing", data.getSmithingLevel());
+                        } else {
+                            displayComboXp(player, "smithing", finalXp, net.minecraft.ChatFormatting.GRAY);
+                        }
+                        sharePartyXP(player, "smithing", finalXp);
                     }
                 }
             }
@@ -1106,53 +1162,59 @@ public class JournalServerEvents {
             if (smeltedItem.isEmpty()) return;
 
             String itemId = BuiltInRegistries.ITEM.getKey(smeltedItem.getItem()).toString();
-            List<String> smeltingXpList = (List<String>) JournalConfig.SMITHING_SMELTING.get();
 
-            for (String entry : smeltingXpList) {
-                String[] parts = entry.split(";");
-                if (parts.length >= 2) {
-                    String[] groupedIds = parts[0].split(",");
-                    for (String id : groupedIds) {
-                        if (id.trim().equals(itemId)) {
-                            float xpReward = Float.parseFloat(parts[1].trim()) * smeltedItem.getCount();
-                            if (xpReward > 0) {
-                                JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
 
-                                if (data.getSmithingLevel() >= 1) {
-                                    // Apply XP Buff!
-                                    float finalXp = xpReward * getXpMultiplier(player);
+            float xpReward = (float) RestrictionDataLoader.getCraftingXp(itemId) * smeltedItem.getCount();
 
-                                    boolean leveledUp = data.addSmithingXP(finalXp, player);
 
-                                    SyncJournalDataPayload payload = new SyncJournalDataPayload(
-                                            data.getVitalityLevel(), data.getVitalityXP(),
-                                            data.getCombatLevel(), data.getCombatXP(),
-                                            data.getDefenseLevel(), data.getDefenseXP(),
-                                            data.getMiningLevel(), data.getMiningXP(),
-                                            data.getFarmingLevel(), data.getFarmingXP(),
-                                            data.getSmithingLevel(), data.getSmithingXP(),
-                                            data.getArcheryLevel(), data.getArcheryXP(),
-                                            data.getFishingLevel(), data.getFishingXP(),
-                                            data.getAgilityLevel(), data.getAgilityXP(),
-                                            data.getAlchemyLevel(), data.getAlchemyXP(),
-                                            data.getTornPages()
-                                    );
-                                    PacketDistributor.sendToPlayer(player, payload);
-
-                                    if (leveledUp) {
-                                        player.displayClientMessage(Component.literal("§6§lSmithing Level Up! §eYou are now level " + data.getSmithingLevel() + "!"), false);
-                                        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
-                                        clearCombo(player, "smithing");
-                                        checkAndBroadcastMilestone(player, "smithing", data.getSmithingLevel());
-                                    } else {
-                                        displayComboXp(player, "smithing", finalXp, net.minecraft.ChatFormatting.GRAY);
-                                    }
-                                    sharePartyXP(player, "smithing", finalXp);
-                                }
+            if (xpReward <= 0) {
+                List<String> smeltingXpList = (List<String>) JournalConfig.SMITHING_SMELTING.get();
+                for (String entry : smeltingXpList) {
+                    String[] parts = entry.split(";");
+                    if (parts.length >= 2) {
+                        String[] groupedIds = parts[0].split(",");
+                        for (String id : groupedIds) {
+                            if (id.trim().equals(itemId)) {
+                                xpReward = Float.parseFloat(parts[1].trim()) * smeltedItem.getCount();
+                                break;
                             }
-                            return;
                         }
                     }
+                }
+            }
+
+            if (xpReward > 0) {
+                JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+
+                if (data.getSmithingLevel() >= 1) {
+                    float finalXp = xpReward * getXpMultiplier(player);
+
+                    boolean leveledUp = data.addSmithingXP(finalXp, player);
+
+                    SyncJournalDataPayload payload = new SyncJournalDataPayload(
+                            data.getVitalityLevel(), data.getVitalityXP(),
+                            data.getCombatLevel(), data.getCombatXP(),
+                            data.getDefenseLevel(), data.getDefenseXP(),
+                            data.getMiningLevel(), data.getMiningXP(),
+                            data.getFarmingLevel(), data.getFarmingXP(),
+                            data.getSmithingLevel(), data.getSmithingXP(),
+                            data.getArcheryLevel(), data.getArcheryXP(),
+                            data.getFishingLevel(), data.getFishingXP(),
+                            data.getAgilityLevel(), data.getAgilityXP(),
+                            data.getAlchemyLevel(), data.getAlchemyXP(),
+                            data.getTornPages()
+                    );
+                    PacketDistributor.sendToPlayer(player, payload);
+
+                    if (leveledUp) {
+                        player.displayClientMessage(Component.literal("§6§lSmithing Level Up! §eYou are now level " + data.getSmithingLevel() + "!"), false);
+                        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
+                        clearCombo(player, "smithing");
+                        checkAndBroadcastMilestone(player, "smithing", data.getSmithingLevel());
+                    } else {
+                        displayComboXp(player, "smithing", finalXp, net.minecraft.ChatFormatting.GRAY);
+                    }
+                    sharePartyXP(player, "smithing", finalXp);
                 }
             }
         }
@@ -1171,12 +1233,7 @@ public class JournalServerEvents {
             if (stack.isEmpty()) return;
 
             String itemIdentifier = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
-
-            List<String> allArmorRestrictions = new ArrayList<>();
-            allArmorRestrictions.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
-            allArmorRestrictions.addAll(JournalConfig.getAllItemRestrictions());
-
-            String failMessage = getFailedRequirement(serverPlayer, itemIdentifier, allArmorRestrictions);
+            String failMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
 
             if (failMessage != null) {
                 ItemStack restrictedItem = stack.copy();
@@ -1204,15 +1261,7 @@ public class JournalServerEvents {
             ItemStack handStack = event.getItemStack();
             if (!handStack.isEmpty()) {
                 String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-
-                List<String> allInteractRestrictions = new ArrayList<>();
-                allInteractRestrictions.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
-                allInteractRestrictions.addAll(JournalConfig.getAllItemRestrictions());
-                allInteractRestrictions.addAll((List<String>) JournalConfig.FARMING_CROPS.get());
-                allInteractRestrictions.addAll((List<String>) JournalConfig.FARMING_ITEMS.get());
-                allInteractRestrictions.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
-
-                String failMessage = getFailedRequirement(player, itemId, allInteractRestrictions);
+                String failMessage = getFailedRequirementFromMap(player, itemId);
 
                 if (failMessage != null) {
                     event.setCanceled(true);
@@ -1234,13 +1283,7 @@ public class JournalServerEvents {
             ItemStack handStack = event.getItemStack();
             if (!handStack.isEmpty()) {
                 String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-
-                List<String> combinedRestrictions = new ArrayList<>(JournalConfig.getAllItemRestrictions());
-                combinedRestrictions.addAll((List<String>) JournalConfig.FARMING_CROPS.get());
-                combinedRestrictions.addAll((List<String>) JournalConfig.FARMING_ITEMS.get());
-                combinedRestrictions.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
-
-                String failMessage = getFailedRequirement(player, itemId, combinedRestrictions);
+                String failMessage = getFailedRequirementFromMap(player, itemId);
 
                 if (failMessage != null) {
                     event.setCanceled(true);
@@ -1256,9 +1299,7 @@ public class JournalServerEvents {
             ItemStack mainHand = serverPlayer.getMainHandItem();
             if (!mainHand.isEmpty()) {
                 String itemIdentifier = BuiltInRegistries.ITEM.getKey(mainHand.getItem()).toString();
-                List<String> itemRestrictions = JournalConfig.getAllItemRestrictions();
-
-                String failMessage = getFailedRequirement(serverPlayer, itemIdentifier, itemRestrictions);
+                String failMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
 
                 if (failMessage != null) {
                     event.setCanceled(true);
@@ -1279,13 +1320,8 @@ public class JournalServerEvents {
                 ItemStack handStack = event.getItemStack();
                 if (!handStack.isEmpty()) {
                     String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
+                    String failMessage = getFailedRequirementFromMap(player, itemId);
 
-                    List<String> combinedRestrictions = new ArrayList<>(JournalConfig.getAllItemRestrictions());
-                    combinedRestrictions.addAll((List<String>) JournalConfig.FARMING_CROPS.get());
-                    combinedRestrictions.addAll((List<String>) JournalConfig.FARMING_ITEMS.get());
-                    combinedRestrictions.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
-
-                    String failMessage = getFailedRequirement(player, itemId, combinedRestrictions);
                     if (failMessage != null) {
                         event.setCanceled(true);
                         player.displayClientMessage(Component.literal(failMessage), true);
@@ -1367,7 +1403,7 @@ public class JournalServerEvents {
                 ItemStack handStack = event.getItemStack();
                 if (!handStack.isEmpty()) {
                     String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-                    String failMessage = getFailedRequirement(player, itemId, JournalConfig.getAllItemRestrictions());
+                    String failMessage = getFailedRequirementFromMap(player, itemId);
                     if (failMessage != null) {
                         event.setCanceled(true);
                         player.displayClientMessage(Component.literal(failMessage), true);
@@ -1418,12 +1454,11 @@ public class JournalServerEvents {
                 }
             }
 
-            List<String> useRestrictions = new ArrayList<>();
-            useRestrictions.addAll((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
-            useRestrictions.addAll(JournalConfig.getAllItemRestrictions());
+            String failMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
 
-            String failMessage = getFailedRequirement(serverPlayer, itemIdentifier, useRestrictions);
+            // Only check potion-specific logic if the base item check passes
             if (failMessage == null && !potionIdentifier.isEmpty()) {
+                List<String> useRestrictions = new ArrayList<>((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
                 failMessage = getFailedRequirement(serverPlayer, potionIdentifier, useRestrictions);
             }
 
@@ -1547,9 +1582,7 @@ public class JournalServerEvents {
             if (totemStack.isEmpty()) return;
 
             String itemIdentifier = BuiltInRegistries.ITEM.getKey(totemStack.getItem()).toString();
-            List<String> itemRestrictions = JournalConfig.getAllItemRestrictions();
-
-            String failMessage = getFailedRequirement(serverPlayer, itemIdentifier, itemRestrictions);
+            String failMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
 
             if (failMessage != null) {
                 event.setCanceled(true);
@@ -1569,8 +1602,7 @@ public class JournalServerEvents {
             ItemStack mainHand = serverPlayer.getMainHandItem();
             if (!mainHand.isEmpty()) {
                 String itemIdentifier = BuiltInRegistries.ITEM.getKey(mainHand.getItem()).toString();
-                List<String> itemRestrictions = JournalConfig.getAllItemRestrictions();
-                String toolFailMessage = getFailedRequirement(serverPlayer, itemIdentifier, itemRestrictions);
+                String toolFailMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
 
                 if (toolFailMessage != null) {
                     event.setCanceled(true);
@@ -1972,6 +2004,65 @@ public class JournalServerEvents {
     }
 
     @SubscribeEvent
+    public static void onAddReloadListeners(net.neoforged.neoforge.event.AddReloadListenerEvent event) {
+        event.addListener(new com.player.journal.data.RestrictionDataLoader());
+
+        // If the server is running, broadcast the updated payload to all online players after a reload!
+        if (event.getServerResources() != null) {
+            net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    // Re-send the updated config payload with fresh datapack data
+                    syncConfigToPlayer(player);
+                }
+            }
+        }
+    }
+
+    public static void syncConfigToPlayer(ServerPlayer serverPlayer) {
+        @SuppressWarnings("unchecked")
+        SyncJournalConfigPayload configPayload = new SyncJournalConfigPayload(
+                (List<String>) JournalConfig.ARMOR_RESTRICTIONS.get(),
+                (List<String>) JournalConfig.POTION_RESTRICTIONS.get(),
+                com.player.journal.data.RestrictionDataLoader.exportDatapackAndConfig(),
+                (List<String>) JournalConfig.JEWELRY_RESTRICTIONS.get(),
+                (List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get(),
+                (List<String>) JournalConfig.PALADINS_PRIESTS_ARMORS.get(),
+                (List<String>) JournalConfig.PALADINS_PRIESTS_WEAPONS.get(),
+                (List<String>) JournalConfig.PALADINS_PRIESTS_SHIELDS.get(),
+                (List<String>) JournalConfig.ROGUES_WARRIORS_ARMORS.get(),
+                (List<String>) JournalConfig.ROGUES_WARRIORS_WEAPONS.get(),
+                (List<String>) JournalConfig.ARCHERS_ARMORS.get(),
+                (List<String>) JournalConfig.ARCHERS_WEAPONS.get(),
+                (List<String>) JournalConfig.WIZARDS_ARMORS.get(),
+                (List<String>) JournalConfig.WIZARDS_WEAPONS.get(),
+                (List<String>) JournalConfig.ARSENAL_WEAPONS.get(),
+                (List<String>) JournalConfig.ARTIFACTS_ITEMS.get(),
+                (List<String>) JournalConfig.TIDE_ITEMS.get(),
+                (List<String>) JournalConfig.GLIDERS_ITEMS.get(),
+                (List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get(),
+                (List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get(),
+                (List<String>) JournalConfig.IMMERSIVE_AIRCRAFT_ITEMS.get(),
+                (List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get(),
+                (List<String>) JournalConfig.ALCHEMY_UTILITIES.get(),
+                (List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get(),
+                (List<String>) JournalConfig.AGILITY_MOUNTS.get(),
+                com.player.journal.data.RestrictionDataLoader.exportCraftingDatapackAndConfig(),
+                JournalConfig.XP_BASE_REQUIREMENT.get(), JournalConfig.XP_MULTIPLIER.get(),
+                JournalConfig.AGILITY_XP_BASE_REQUIREMENT.get(), JournalConfig.AGILITY_XP_MULTIPLIER.get(),
+                JournalConfig.COMBAT_XP_BASE_REQUIREMENT.get(), JournalConfig.COMBAT_XP_MULTIPLIER.get(),
+                JournalConfig.DEFENSE_XP_BASE_REQUIREMENT.get(), JournalConfig.DEFENSE_XP_MULTIPLIER.get(),
+                JournalConfig.FARMING_XP_BASE_REQUIREMENT.get(), JournalConfig.FARMING_XP_MULTIPLIER.get(),
+                JournalConfig.MINING_XP_BASE_REQUIREMENT.get(), JournalConfig.MINING_XP_MULTIPLIER.get(),
+                JournalConfig.SMITHING_XP_BASE_REQUIREMENT.get(), JournalConfig.SMITHING_XP_MULTIPLIER.get(),
+                JournalConfig.ARCHERY_XP_BASE_REQUIREMENT.get(), JournalConfig.ARCHERY_XP_MULTIPLIER.get(),
+                JournalConfig.FISHING_XP_BASE_REQUIREMENT.get(), JournalConfig.FISHING_XP_MULTIPLIER.get(),
+                JournalConfig.ALCHEMY_XP_BASE_REQUIREMENT.get(), JournalConfig.ALCHEMY_XP_MULTIPLIER.get()
+        );
+        PacketDistributor.sendToPlayer(serverPlayer, configPayload);
+    }
+
+    @SubscribeEvent
     public static void onBookConsumeForMagic(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickItem event) {
         if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
             if (player.isCreative() || player.isSpectator()) return;
@@ -2135,5 +2226,34 @@ public class JournalServerEvents {
                 }
             }
         }
+    }
+    @SuppressWarnings("unchecked")
+    public static List<String> getAllConfigUsageRestrictions() {
+        List<String> all = new ArrayList<>();
+        all.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
+        all.addAll((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
+        all.addAll(JournalConfig.getAllItemRestrictions());
+        all.addAll((List<String>) JournalConfig.JEWELRY_RESTRICTIONS.get());
+        all.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
+        all.addAll((List<String>) JournalConfig.PALADINS_PRIESTS_ARMORS.get());
+        all.addAll((List<String>) JournalConfig.PALADINS_PRIESTS_WEAPONS.get());
+        all.addAll((List<String>) JournalConfig.PALADINS_PRIESTS_SHIELDS.get());
+        all.addAll((List<String>) JournalConfig.ROGUES_WARRIORS_ARMORS.get());
+        all.addAll((List<String>) JournalConfig.ROGUES_WARRIORS_WEAPONS.get());
+        all.addAll((List<String>) JournalConfig.ARCHERS_ARMORS.get());
+        all.addAll((List<String>) JournalConfig.ARCHERS_WEAPONS.get());
+        all.addAll((List<String>) JournalConfig.WIZARDS_ARMORS.get());
+        all.addAll((List<String>) JournalConfig.WIZARDS_WEAPONS.get());
+        all.addAll((List<String>) JournalConfig.ARSENAL_WEAPONS.get());
+        all.addAll((List<String>) JournalConfig.ARTIFACTS_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.GLIDERS_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.IMMERSIVE_AIRCRAFT_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get());
+        all.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
+        all.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
+        return all;
     }
 }

@@ -163,8 +163,8 @@ public class JournalConfig {
         // ==========================================
 
         builder.push("General");
-        LEVELS_PER_PAGE_REWARD = builder.comment("How many skill levels are required to be rewarded with 1 Torn Page? (e.g. 5 = rewarded at level 5, 10, 15...)").defineInRange("levelsPerPageReward", 5, 1, 100);
-        STARTING_TORN_PAGES = builder.comment("How many Torn Pages should a player start with when they first join?").defineInRange("startingTornPages", 5, 0, 1000);
+        LEVELS_PER_PAGE_REWARD = builder.comment("How many skill levels are required to be rewarded with 1 Torn Page? (e.g. 5 = rewarded at level 5, 10, 15...)").defineInRange("levelsPerPageReward", 3, 1, 100);
+        STARTING_TORN_PAGES = builder.comment("How many Torn Pages should a player start with when they first join?").defineInRange("startingTornPages", 8, 0, 1000);
         builder.pop();
 
         // ==========================================

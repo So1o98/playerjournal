@@ -75,6 +75,7 @@ public class ClientPayloadHandler {
     public static List<String> serverEnchantmentRestrictions = new ArrayList<>();
     public static List<String> serverAgilityMounts = new ArrayList<>();
     public static List<PartyMember> pendingInvites = new ArrayList<>();
+    public static java.util.List<String> serverCraftingRestrictions = new java.util.ArrayList<>();
 
     public static int serverVitalityBase = -1; public static double serverVitalityMult = -1;
     public static int serverAgilityBase = -1; public static double serverAgilityMult = -1;
@@ -157,6 +158,7 @@ public class ClientPayloadHandler {
             serverAlchemyUtilities = payload.alchemyUtilities();
             serverEnchantmentRestrictions = payload.enchantmentRestrictions();
             serverAgilityMounts = payload.agilityMounts();
+            serverCraftingRestrictions = payload.craftingRestrictions();
 
             serverVitalityBase = payload.vitalityBase(); serverVitalityMult = payload.vitalityMult();
             serverAgilityBase = payload.agilityBase(); serverAgilityMult = payload.agilityMult();

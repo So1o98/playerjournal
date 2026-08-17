@@ -173,7 +173,7 @@ public class JournalScreen extends Screen {
 
     @SuppressWarnings("unchecked")
     public static void rebuildUnlocksIfNeeded() {
-        if (listsBuilt) return;
+        // Removed the static cache lock so the GUI always rebuilds when opened, ensuring datapack reloads are caught instantly!
 
         cachedVitalityUnlocks.clear();
         cachedAgilityUnlocks.clear();
@@ -193,7 +193,7 @@ public class JournalScreen extends Screen {
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             allRestrictions.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
             allRestrictions.addAll((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
-            allRestrictions.addAll(JournalConfig.getAllItemRestrictions());
+            allRestrictions.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
             allRestrictions.addAll((List<String>) JournalConfig.JEWELRY_RESTRICTIONS.get());
             allRestrictions.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
             allRestrictions.addAll((List<String>) JournalConfig.PALADINS_PRIESTS_ARMORS.get());
@@ -215,7 +215,6 @@ public class JournalScreen extends Screen {
             allRestrictions.addAll((List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get());
             allRestrictions.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
             allRestrictions.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
-
         } else {
             allRestrictions.addAll(ClientPayloadHandler.serverArmorRestrictions);
             allRestrictions.addAll(ClientPayloadHandler.serverPotionRestrictions);
@@ -296,10 +295,12 @@ public class JournalScreen extends Screen {
             agilityConfigStrings.addAll((List<String>) JournalConfig.JEWELRY_RESTRICTIONS.get());
             agilityConfigStrings.addAll((List<String>) JournalConfig.GLIDERS_ITEMS.get());
             agilityConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_AIRCRAFT_ITEMS.get());
+            agilityConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             agilityConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             agilityConfigStrings.addAll(ClientPayloadHandler.serverGlidersItems);
             agilityConfigStrings.addAll(ClientPayloadHandler.serverImmersiveAircraftItems);
+            agilityConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         for (String restriction : agilityConfigStrings) {
@@ -324,6 +325,7 @@ public class JournalScreen extends Screen {
                 }
             }
         }
+
         Set<String> agilityMountStrings = new java.util.LinkedHashSet<>();
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             agilityMountStrings.addAll((List<String>) JournalConfig.AGILITY_MOUNTS.get());
@@ -366,10 +368,12 @@ public class JournalScreen extends Screen {
             farmingConfigStrings.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
             farmingConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
             farmingConfigStrings.addAll((List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get());
+            farmingConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             farmingConfigStrings.addAll(ClientPayloadHandler.serverFarmersDelightRestrictions);
             farmingConfigStrings.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
             farmingConfigStrings.addAll(ClientPayloadHandler.serverSmallShipsItems);
+            farmingConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         for (String restriction : farmingConfigStrings) {
@@ -419,14 +423,16 @@ public class JournalScreen extends Screen {
             }
         }
 
-
         Set<String> miningToolStrings = new java.util.LinkedHashSet<>();
         miningToolStrings.addAll((List<String>) JournalConfig.MINING_TOOL_RESTRICTIONS.get());
         miningToolStrings.addAll((List<String>) JournalConfig.CUSTOM_MINING_TOOLS.get());
+
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             miningToolStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
+            miningToolStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             miningToolStrings.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
+            miningToolStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         Set<String> addedToolIds = new HashSet<>();
@@ -471,6 +477,12 @@ public class JournalScreen extends Screen {
         miningBlockStrings.addAll((List<String>) JournalConfig.MINING_NETHERITE.get());
         miningBlockStrings.addAll((List<String>) JournalConfig.CUSTOM_MINING_BLOCKS.get());
 
+        if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
+            miningBlockStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+        } else {
+            miningBlockStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
+        }
+
         Set<String> addedBlockIds = new HashSet<>();
         for (String restriction : miningBlockStrings) {
             String[] parts = restriction.split(";");
@@ -501,6 +513,12 @@ public class JournalScreen extends Screen {
         Set<String> smithingRestrictions = new java.util.LinkedHashSet<>();
         smithingRestrictions.addAll(JournalConfig.getSmithingUtilities());
 
+        if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
+            smithingRestrictions.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+        } else {
+            smithingRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
+        }
+
         for (String restriction : smithingRestrictions) {
             String[] parts = restriction.split(";");
             if (parts.length >= 2) {
@@ -525,7 +543,7 @@ public class JournalScreen extends Screen {
         }
 
         Set<String> craftingRestrictions = new java.util.LinkedHashSet<>();
-        craftingRestrictions.addAll(JournalConfig.getAllCraftingRestrictions());
+        craftingRestrictions.addAll(ClientPayloadHandler.serverCraftingRestrictions);
 
         for (String restriction : craftingRestrictions) {
             String[] parts = restriction.split(";");
@@ -562,12 +580,14 @@ public class JournalScreen extends Screen {
             archeryConfigStrings.addAll((List<String>) JournalConfig.ARCHERS_WEAPONS.get());
             archeryConfigStrings.addAll((List<String>) JournalConfig.ARSENAL_WEAPONS.get());
             archeryConfigStrings.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
+            archeryConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             archeryConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             archeryConfigStrings.addAll(ClientPayloadHandler.serverArchersArmors);
             archeryConfigStrings.addAll(ClientPayloadHandler.serverArchersWeapons);
             archeryConfigStrings.addAll(ClientPayloadHandler.serverArsenalWeapons);
             archeryConfigStrings.addAll(ClientPayloadHandler.serverTideItems);
+            archeryConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         for (String restriction : archeryConfigStrings) {
@@ -607,6 +627,7 @@ public class JournalScreen extends Screen {
             fishingConfigStrings.addAll((List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get());
             fishingConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
             fishingConfigStrings.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
+            fishingConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             fishingConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             fishingConfigStrings.addAll(ClientPayloadHandler.serverArchersArmors);
@@ -615,6 +636,7 @@ public class JournalScreen extends Screen {
             fishingConfigStrings.addAll(ClientPayloadHandler.serverLilisLuckyLuresItems);
             fishingConfigStrings.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
             fishingConfigStrings.addAll(ClientPayloadHandler.serverTideItems);
+            fishingConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         for (String restriction : fishingConfigStrings) {
@@ -640,14 +662,15 @@ public class JournalScreen extends Screen {
             }
         }
 
-
         Set<String> alchemyConfigStrings = new java.util.LinkedHashSet<>();
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             alchemyConfigStrings.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
             alchemyConfigStrings.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
+            alchemyConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
         } else {
             alchemyConfigStrings.addAll(ClientPayloadHandler.serverAlchemyUtilities);
             alchemyConfigStrings.addAll(ClientPayloadHandler.serverEnchantmentRestrictions);
+            alchemyConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         }
 
         for (String restriction : alchemyConfigStrings) {

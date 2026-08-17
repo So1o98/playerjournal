@@ -24,12 +24,12 @@ public class JournalConfigScreen {
         // ==========================================
         ConfigCategory generalCategory = builder.getOrCreateCategory(Component.literal("General"));
         generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Levels Per Page Reward"), JournalConfig.LEVELS_PER_PAGE_REWARD.get())
-                .setDefaultValue(5)
+                .setDefaultValue(3)
                 .setTooltip(Component.literal("How many skill levels are required to be rewarded with 1 Torn Page?\n(e.g. 5 = rewarded at level 5, 10, 15...)"))
                 .setSaveConsumer(JournalConfig.LEVELS_PER_PAGE_REWARD::set)
                 .build());
         generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Starting Torn Pages"), JournalConfig.STARTING_TORN_PAGES.get())
-                .setDefaultValue(5)
+                .setDefaultValue(8)
                 .setTooltip(Component.literal("How many Torn Pages should a player start with when they first join?"))
                 .setSaveConsumer(JournalConfig.STARTING_TORN_PAGES::set)
                 .build());

@@ -35,7 +35,8 @@ public class JournalClientEvents {
             }
         }
 
-        List<String> craftingRestrictions = JournalConfig.getAllCraftingRestrictions();
+        // --- Crafting Restrictions ---
+        List<String> craftingRestrictions = ClientPayloadHandler.serverCraftingRestrictions;
         for (String restriction : craftingRestrictions) {
             String[] parts = restriction.split(";");
             if (parts.length >= 2) {
@@ -58,11 +59,11 @@ public class JournalClientEvents {
             }
         }
 
+        // --- Usage Restrictions (Now silently contains Datapacks via Payload Sync!) ---
         List<String> usageRestrictions = new ArrayList<>();
-
         usageRestrictions.addAll(ClientPayloadHandler.serverArmorRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverPotionRestrictions);
-        usageRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
+        usageRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions); // <-- Datapack data is hiding in here!
         usageRestrictions.addAll(ClientPayloadHandler.serverJewelryRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverFarmersDelightRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverPaladinsPriestsArmors);
@@ -82,18 +83,8 @@ public class JournalClientEvents {
         usageRestrictions.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
         usageRestrictions.addAll(ClientPayloadHandler.serverImmersiveAircraftItems);
         usageRestrictions.addAll(ClientPayloadHandler.serverSmallShipsItems);
-
         usageRestrictions.addAll(ClientPayloadHandler.serverAlchemyUtilities);
         usageRestrictions.addAll(ClientPayloadHandler.serverEnchantmentRestrictions);
-
-        if (usageRestrictions.isEmpty()) {
-            usageRestrictions.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
-            usageRestrictions.addAll((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
-
-            usageRestrictions.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
-            usageRestrictions.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
-            usageRestrictions.addAll(JournalConfig.getAllItemRestrictions());
-        }
 
         for (String restriction : usageRestrictions) {
             String[] parts = restriction.split(";");
@@ -129,7 +120,6 @@ public class JournalClientEvents {
                         case "archery" -> playerLevel = ClientPayloadHandler.archeryLevel;
                         case "fishing" -> playerLevel = ClientPayloadHandler.fishingLevel;
                         case "alchemy" -> playerLevel = ClientPayloadHandler.alchemyLevel;
-                        default -> { return; }
                     }
 
                     if (playerLevel < reqLevel) {
@@ -159,9 +149,9 @@ public class JournalClientEvents {
             guiGraphics.renderItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), this.getX() + 2, this.getY() + 2);
         }
     }
+
     @SubscribeEvent
     public static void registerGuiOverlays(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
         event.registerAboveAll(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("playerjournal", "party_hud"), PartyOverlay.HUD_PARTY);
-
     }
 }
