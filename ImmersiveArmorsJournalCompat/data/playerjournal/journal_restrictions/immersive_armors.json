@@ -1,0 +1,242 @@
+[
+  {
+    "item": "immersive_armors:bone_helmet",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:bone_chestplate",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:bone_leggings",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:bone_boots",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:robe_helmet",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:robe_chestplate",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:robe_leggings",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:robe_boots",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:wooden_helmet",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:wooden_chestplate",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:wooden_leggings",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:wooden_boots",
+    "requirements": {
+      "defense": 1
+    }
+  },
+  {
+    "item": "immersive_armors:wither_helmet",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:wither_chestplate",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:wither_leggings",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:wither_boots",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:slime_helmet",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:slime_chestplate",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:slime_leggings",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:slime_boots",
+    "requirements": {
+      "defense": 5
+    }
+  },
+  {
+    "item": "immersive_armors:warrior_helmet",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:warrior_chestplate",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:warrior_leggings",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:warrior_boots",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:divine_helmet",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:divine_chestplate",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:divine_leggings",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:divine_boots",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:steampunk_helmet",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:steampunk_chestplate",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:steampunk_leggings",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:steampunk_boots",
+    "requirements": {
+      "defense": 10
+    }
+  },
+  {
+    "item": "immersive_armors:heavy_helmet",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:heavy_chestplate",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:heavy_leggings",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:heavy_boots",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:prismarine_helmet",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:prismarine_chestplate",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:prismarine_leggings",
+    "requirements": {
+      "defense": 20
+    }
+  },
+  {
+    "item": "immersive_armors:prismarine_boots",
+    "requirements": {
+      "defense": 20
+    }
+  }
+]
