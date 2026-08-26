@@ -33,7 +33,7 @@ public record SyncJournalConfigPayload(
         List<String> alchemyUtilities,
         List<String> enchantmentRestrictions,
         List<String> agilityMounts,
-        List<String> craftingRestrictions, // <-- NEW LIST ADDED HERE
+        List<String> craftingRestrictions,
 
         int vitalityBase, double vitalityMult,
         int agilityBase, double agilityMult,
@@ -83,7 +83,7 @@ public record SyncJournalConfigPayload(
                 buffer.readList(FriendlyByteBuf::readUtf),
                 buffer.readList(FriendlyByteBuf::readUtf),
                 buffer.readList(FriendlyByteBuf::readUtf),
-                buffer.readList(FriendlyByteBuf::readUtf), // <-- ADDED BUFFER READER
+                buffer.readList(FriendlyByteBuf::readUtf),
 
                 buffer.readInt(), buffer.readDouble(),
                 buffer.readInt(), buffer.readDouble(),
@@ -124,7 +124,7 @@ public record SyncJournalConfigPayload(
         buffer.writeCollection(this.alchemyUtilities(), FriendlyByteBuf::writeUtf);
         buffer.writeCollection(this.enchantmentRestrictions(), FriendlyByteBuf::writeUtf);
         buffer.writeCollection(this.agilityMounts(), FriendlyByteBuf::writeUtf);
-        buffer.writeCollection(this.craftingRestrictions(), FriendlyByteBuf::writeUtf); // <-- ADDED BUFFER WRITER
+        buffer.writeCollection(this.craftingRestrictions(), FriendlyByteBuf::writeUtf);
 
         buffer.writeInt(this.vitalityBase()); buffer.writeDouble(this.vitalityMult());
         buffer.writeInt(this.agilityBase()); buffer.writeDouble(this.agilityMult());

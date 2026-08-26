@@ -4,7 +4,6 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.fml.common.EventBusSubscriber;
 
-
 @EventBusSubscriber(modid = "playerjournal", value = net.neoforged.api.distmarker.Dist.CLIENT)
 public class ClientSetup {
 
@@ -19,6 +18,7 @@ public class ClientSetup {
 
     @net.neoforged.bus.api.SubscribeEvent
     public static void onClientDisconnect(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+
 
         com.player.journal.network.ClientPayloadHandler.serverArmorRestrictions.clear();
         com.player.journal.network.ClientPayloadHandler.serverPotionRestrictions.clear();
@@ -45,7 +45,6 @@ public class ClientSetup {
         com.player.journal.network.ClientPayloadHandler.serverAlchemyUtilities.clear();
         com.player.journal.network.ClientPayloadHandler.serverEnchantmentRestrictions.clear();
         com.player.journal.network.ClientPayloadHandler.serverAgilityMounts.clear();
-
 
         com.player.journal.client.JournalScreen.listsBuilt = false;
     }

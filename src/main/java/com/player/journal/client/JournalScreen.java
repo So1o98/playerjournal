@@ -1,5 +1,6 @@
 package com.player.journal.client;
 
+import com.player.journal.api.PlayerJournalAPI;
 import com.player.journal.config.JournalConfig;
 import com.player.journal.network.ClientPayloadHandler;
 import net.minecraft.Util;
@@ -36,7 +37,7 @@ public class JournalScreen extends Screen {
 
     private static final ResourceLocation[] PAGES = {
             ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/contents.png"), // 0
-            ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/trading.png"),  // 1 (Trading shifted to Page 1)
+            ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/trading.png"),  // 1 (Trading)
             ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/health.png"),   // 2 (Vitality)
             ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/agility.png"),  // 3 (Agility)
             ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/combat.png"),   // 4 (Combat)
@@ -155,6 +156,26 @@ public class JournalScreen extends Screen {
         super(Component.literal("Player Journal"));
     }
 
+    // --- NEW: Translates block names to item names so they render properly in the GUI ---
+    private static Item getRenderItem(String id) {
+        String cleanId = id.trim();
+
+        if (cleanId.equals("minecraft:carrots")) return Items.CARROT;
+        if (cleanId.equals("minecraft:potatoes")) return Items.POTATO;
+        if (cleanId.equals("minecraft:beetroots")) return Items.BEETROOT;
+        if (cleanId.equals("minecraft:sweet_berry_bush")) return Items.SWEET_BERRIES;
+        if (cleanId.equals("minecraft:cocoa")) return Items.COCOA_BEANS;
+        if (cleanId.equals("minecraft:pitcher_crop")) return Items.PITCHER_PLANT;
+        if (cleanId.equals("minecraft:torchflower_crop")) return Items.TORCHFLOWER;
+
+        if (cleanId.equals("farmersdelight:cabbages")) return BuiltInRegistries.ITEM.get(ResourceLocation.parse("farmersdelight:cabbage"));
+        if (cleanId.equals("farmersdelight:onions")) return BuiltInRegistries.ITEM.get(ResourceLocation.parse("farmersdelight:onion"));
+        if (cleanId.equals("farmersdelight:tomatoes") || cleanId.equals("farmersdelight:budding_tomatoes")) return BuiltInRegistries.ITEM.get(ResourceLocation.parse("farmersdelight:tomato"));
+        if (cleanId.equals("farmersdelight:rice_crop")) return BuiltInRegistries.ITEM.get(ResourceLocation.parse("farmersdelight:rice_panicle"));
+
+        return BuiltInRegistries.ITEM.get(ResourceLocation.parse(cleanId));
+    }
+
     public static List<UnlockEntry> getListForPage(int page) {
         return switch (page) {
             case 2 -> cachedVitalityUnlocks;
@@ -173,7 +194,6 @@ public class JournalScreen extends Screen {
 
     @SuppressWarnings("unchecked")
     public static void rebuildUnlocksIfNeeded() {
-        // Removed the static cache lock so the GUI always rebuilds when opened, ensuring datapack reloads are caught instantly!
 
         cachedVitalityUnlocks.clear();
         cachedAgilityUnlocks.clear();
@@ -187,6 +207,78 @@ public class JournalScreen extends Screen {
         cachedFishingUnlocks.clear();
         cachedAlchemyUnlocks.clear();
         cachedVillagers.clear();
+
+        // --- 1. LOAD CUSTOM API RESTRICTIONS (Addon Mods) ---
+
+        PlayerJournalAPI.getAllCustomUsageRestrictions().forEach((itemId, reqs) -> {
+            try {
+                Item item = getRenderItem(itemId);
+                if (item != Items.AIR) {
+                    ItemStack stack = new ItemStack(item);
+                    reqs.forEach((skill, req) -> {
+                        switch(skill.toLowerCase()) {
+                            case "vitality" -> cachedVitalityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "agility" -> cachedAgilityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "combat" -> cachedCombatUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "defense" -> cachedDefenseUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "farming" -> cachedFarmingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "mining" -> cachedMiningUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "smithing" -> cachedSmithingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "archery" -> cachedArcheryUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "fishing" -> cachedFishingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "alchemy" -> cachedAlchemyUnlocks.add(new UnlockEntry(stack, req, false, false));
+                        }
+                    });
+                }
+            } catch (Exception e) {}
+        });
+
+        PlayerJournalAPI.getAllCustomInteractRestrictions().forEach((itemId, reqs) -> {
+            try {
+                Item item = getRenderItem(itemId);
+                if (item != Items.AIR) {
+                    ItemStack stack = new ItemStack(item);
+                    reqs.forEach((skill, req) -> {
+                        switch(skill.toLowerCase()) {
+                            case "vitality" -> cachedVitalityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "agility" -> cachedAgilityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "combat" -> cachedCombatUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "defense" -> cachedDefenseUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "farming" -> cachedFarmingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "mining" -> cachedMiningUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "smithing" -> cachedSmithingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "archery" -> cachedArcheryUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "fishing" -> cachedFishingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "alchemy" -> cachedAlchemyUnlocks.add(new UnlockEntry(stack, req, false, false));
+                        }
+                    });
+                }
+            } catch (Exception e) {}
+        });
+
+        PlayerJournalAPI.getAllCustomBlockRestrictions().forEach((blockId, reqs) -> {
+            try {
+                Item item = getRenderItem(blockId);
+                if (item != Items.AIR) {
+                    ItemStack stack = new ItemStack(item);
+                    reqs.forEach((skill, req) -> {
+                        switch(skill.toLowerCase()) {
+                            case "mining" -> cachedMiningBlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "farming" -> cachedFarmingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "smithing" -> cachedSmithingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "vitality" -> cachedVitalityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "agility" -> cachedAgilityUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "combat" -> cachedCombatUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "defense" -> cachedDefenseUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "archery" -> cachedArcheryUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "fishing" -> cachedFishingUnlocks.add(new UnlockEntry(stack, req, false, false));
+                            case "alchemy" -> cachedAlchemyUnlocks.add(new UnlockEntry(stack, req, false, false));
+                        }
+                    });
+                }
+            } catch (Exception e) {}
+        });
+        // ----------------------------------------------------
 
         Set<String> allRestrictions = new java.util.LinkedHashSet<>();
 
@@ -273,7 +365,7 @@ public class JournalScreen extends Screen {
                                 displayStack.set(DataComponents.POTION_CONTENTS, new PotionContents(potionHolder.get()));
                             }
                         } else {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) displayStack = new ItemStack(item);
                         }
 
@@ -318,7 +410,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedAgilityUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false));
                         } catch (Exception e) {}
                     }
@@ -363,6 +455,7 @@ public class JournalScreen extends Screen {
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_ITEMS.get());
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_UTILITIES.get());
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_CROPS.get());
+        farmingConfigStrings.addAll(JournalConfig.getAllBlockRestrictions()); // Added Block restrictions here!
 
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             farmingConfigStrings.addAll((List<String>) JournalConfig.FARMERS_DELIGHT_RESTRICTIONS.get());
@@ -391,7 +484,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedFarmingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false));
                         } catch (Exception e) {}
                     }
@@ -453,7 +546,7 @@ public class JournalScreen extends Screen {
                         String cleanId = itemId.trim();
                         if (addedToolIds.add(cleanId)) {
                             try {
-                                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(cleanId));
+                                Item item = getRenderItem(cleanId);
                                 if (item != Items.AIR) cachedMiningUnlocks.add(new UnlockEntry(new ItemStack(item), miningReq, false, false));
                             } catch (Exception e) {}
                         }
@@ -461,7 +554,6 @@ public class JournalScreen extends Screen {
                 }
             }
         }
-
 
         Set<String> miningBlockStrings = new java.util.LinkedHashSet<>();
         miningBlockStrings.addAll(JournalConfig.getAllBlockRestrictions());
@@ -501,7 +593,7 @@ public class JournalScreen extends Screen {
                         String cleanId = itemId.trim();
                         if (addedBlockIds.add(cleanId)) {
                             try {
-                                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(cleanId));
+                                Item item = getRenderItem(cleanId);
                                 if (item != Items.AIR) cachedMiningBlocks.add(new UnlockEntry(new ItemStack(item), miningReq, false, false));
                             } catch (Exception e) {}
                         }
@@ -534,7 +626,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedSmithingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false));
                         } catch (Exception e) {}
                     }
@@ -560,7 +652,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedSmithingUnlocks.add(new UnlockEntry(new ItemStack(item), req, true, false));
                         } catch (Exception e) {}
                     }
@@ -605,7 +697,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedArcheryUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false));
                         } catch (Exception e) {}
                     }
@@ -654,7 +746,7 @@ public class JournalScreen extends Screen {
                 if (req != -1) {
                     for (String itemId : groupedItems) {
                         try {
-                            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId.trim()));
+                            Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedFishingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false));
                         } catch (Exception e) {}
                     }
@@ -704,13 +796,12 @@ public class JournalScreen extends Screen {
                             }
 
                             if (displayStack.isEmpty()) {
-                                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
+                                Item item = getRenderItem(itemId);
                                 if (item != Items.AIR) displayStack = new ItemStack(item);
                             }
 
                             if (!displayStack.isEmpty()) {
-                                boolean isEnchantedBook = displayStack.is(Items.ENCHANTED_BOOK);
-                                cachedAlchemyUnlocks.add(new UnlockEntry(displayStack, req, false, isEnchantedBook));
+                                cachedAlchemyUnlocks.add(new UnlockEntry(displayStack, req, false, false));
                             }
                         } catch (Exception e) {}
                     }
@@ -733,6 +824,7 @@ public class JournalScreen extends Screen {
             }
         }
 
+        // --- SORT ALL LISTS BY LEVEL REQUIREMENT ---
         cachedVitalityUnlocks.sort(Comparator.comparingInt(entry -> entry.requiredLevel));
         cachedAgilityUnlocks.sort(Comparator.comparingInt(entry -> entry.requiredLevel));
         cachedCombatUnlocks.sort(Comparator.comparingInt(entry -> entry.requiredLevel));
@@ -753,7 +845,7 @@ public class JournalScreen extends Screen {
 
     private boolean isPageUnlocked(int pageIndex) {
         return switch (pageIndex) {
-            case 0, 1, 2, 3, 4, 5 -> true; // Pages 0 to 5 (Trading, Vitality, Agility, Combat, Defense) are unlocked by default
+            case 0, 1, 2, 3, 4, 5 -> true;
             case 6 -> ClientPayloadHandler.farmingLevel >= 1;
             case 7 -> ClientPayloadHandler.miningLevel >= 1;
             case 8 -> ClientPayloadHandler.smithingLevel >= 1;
@@ -808,7 +900,7 @@ public class JournalScreen extends Screen {
                 this.init(this.minecraft, this.width, this.height);
             }).bounds(pinX, pinY, 50, 20).build());
 
-            // --- MINING SUB-TAB TOGGLE BUTTON ---
+
             if (this.currentPage == 7) {
                 int tabX = pinX;
                 int tabY = pinY + 23;
@@ -822,14 +914,14 @@ public class JournalScreen extends Screen {
             }
         }
 
-        // --- NEW: PARTY INVITE BUTTONS ---
+
         if (ClientPayloadHandler.pendingInvites != null && !ClientPayloadHandler.pendingInvites.isEmpty()) {
             int headSize = 32;
             int leftPageCenter = x + 114;
             int startX = leftPageCenter - (headSize / 2);
-            int topY = y + 25; // Same Y level as the party heads
+            int topY = y + 25;
 
-            // Accept Button (Green Tick)
+
             this.addRenderableWidget(Button.builder(Component.literal("§a✔"), button -> {
                 net.neoforged.neoforge.network.PacketDistributor.sendToServer(
                         new com.player.journal.network.PartyInviteResponsePayload(true, ClientPayloadHandler.pendingInvites.get(0).name)
@@ -838,13 +930,13 @@ public class JournalScreen extends Screen {
                 this.init(this.minecraft, this.width, this.height); // Refresh the screen
             }).bounds(startX - 25, topY + 6, 20, 20).build());
 
-            // Decline Button (Red Cross)
+
             this.addRenderableWidget(Button.builder(Component.literal("§c✖"), button -> {
                 net.neoforged.neoforge.network.PacketDistributor.sendToServer(
                         new com.player.journal.network.PartyInviteResponsePayload(false, ClientPayloadHandler.pendingInvites.get(0).name)
                 );
-                ClientPayloadHandler.pendingInvites.remove(0); // Clear the invite from the client
-                this.init(this.minecraft, this.width, this.height); // Refresh the screen
+                ClientPayloadHandler.pendingInvites.remove(0);
+                this.init(this.minecraft, this.width, this.height);
             }).bounds(startX + headSize + 5, topY + 6, 20, 20).build());
         }
     }
@@ -913,7 +1005,7 @@ public class JournalScreen extends Screen {
                 int rightPageX = x + 235;
                 int startY = y + 39;
 
-                // Existing chapter clicks
+
                 if (mouseX >= rightPageX && mouseX <= rightPageX + 120) {
                     if (mouseY >= startY && mouseY < startY + (11 * 11)) {
                         int clickedIndex = (int) ((mouseY - startY) / 11);
@@ -933,10 +1025,10 @@ public class JournalScreen extends Screen {
                     }
                 }
 
-                // --- NEW: CREATE BOOK TEXT CLICK LOGIC ---
-                int rightListY = startY + (10 * 11); // After the 11 list items are drawn
-                rightListY += 14; // Space for Pages Available
-                int createBtnY = rightListY + 12; // Space for the Create Book button
+
+                int rightListY = startY + (10 * 11);
+                rightListY += 14;
+                int createBtnY = rightListY + 12;
                 String createBtnText = "• Create Book (5 Pages)";
                 int textWidth = this.minecraft.font.width(createBtnText);
 
@@ -955,7 +1047,7 @@ public class JournalScreen extends Screen {
                 }
             }
 
-            // --- PADLOCK CLICK LOGIC ---
+
             if (this.currentPage >= 6 && this.currentPage <= 11 && !isPageUnlocked(this.currentPage)) {
                 int padSize = 48;
                 int padX = x + (imageWidth / 2) - (padSize / 2);
@@ -1022,9 +1114,7 @@ public class JournalScreen extends Screen {
 
         ItemStack hoveredStack = null;
 
-        // ----------------------------------------------------
-        // PAGE 0: CONTENTS SCREEN (Classic Two-Page)
-        // ----------------------------------------------------
+
         if (this.currentPage == 0) {
             int rightPageX = x + 235;
             int rightPageY = y + 25;
@@ -1044,10 +1134,10 @@ public class JournalScreen extends Screen {
             drawContentRow(guiGraphics, rightPageX, rightListY, mouseX, mouseY, "Fishing", ClientPayloadHandler.fishingLevel, ClientPayloadHandler.hasFishing); rightListY += 11;
             drawContentRow(guiGraphics, rightPageX, rightListY, mouseX, mouseY, "Alchemy", ClientPayloadHandler.alchemyLevel, ClientPayloadHandler.hasAlchemy);
 
-            rightListY += 14; // Give some breathing room
+            rightListY += 14;
             guiGraphics.drawString(this.font, "Pages Available: " + ClientPayloadHandler.tornPages, rightPageX, rightListY, 0xFF8B0000, false);
 
-            // --- NEW: CREATE BOOK TEXT BUTTON ---
+
             rightListY += 12;
             String createBtnText = "• Create Book (5 Pages)";
             boolean canAfford = ClientPayloadHandler.tornPages >= 5;
@@ -1065,7 +1155,7 @@ public class JournalScreen extends Screen {
             net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
             if (player != null) {
 
-                // --- NEW: CHECK FOR PENDING INVITES FIRST ---
+
                 if (ClientPayloadHandler.pendingInvites != null && !ClientPayloadHandler.pendingInvites.isEmpty()) {
                     ClientPayloadHandler.PartyMember inviter = ClientPayloadHandler.pendingInvites.get(0);
                     int headSize = 32;
@@ -1081,7 +1171,7 @@ public class JournalScreen extends Screen {
                     guiGraphics.drawString(this.font, inviter.name, -(nameWidth / 2), 0, 0xFF006400, false);
                     guiGraphics.pose().popPose();
                 }
-                // --- IF NO INVITES, DRAW NORMAL PARTY MEMBERS ---
+
                 else {
                     List<ClientPayloadHandler.PartyMember> party = ClientPayloadHandler.partyMembers;
                     if (party == null || party.isEmpty()) {
@@ -1089,7 +1179,7 @@ public class JournalScreen extends Screen {
                     }
 
                     int partySize = Math.min(4, party.size());
-                    int headSize = partySize >= 3 ? 20 : 32; // Shrink to fit 3 or 4 across the page
+                    int headSize = partySize >= 3 ? 20 : 32;
                     int spacing = 5;
                     int totalWidth = (partySize * headSize) + ((partySize - 1) * spacing);
                     int startX = leftPageCenter - (totalWidth / 2);
@@ -1100,7 +1190,7 @@ public class JournalScreen extends Screen {
 
                         net.minecraft.client.gui.components.PlayerFaceRenderer.draw(guiGraphics, member.skin, currentHeadX, topY, headSize);
 
-                        // Dynamically scale the usernames so they don't overlap!
+
                         guiGraphics.pose().pushPose();
                         float fontScale = partySize >= 3 ? 0.65f : 1.0f;
                         guiGraphics.pose().translate(currentHeadX + (headSize / 2f), topY + headSize + 4, 0);
@@ -1112,8 +1202,7 @@ public class JournalScreen extends Screen {
                     }
                 }
 
-                // Always use 32 for the spacing here so the attributes list doesn't jump up and down
-                // when switching between large heads (invites) and small heads (full party).
+
                 int attrTitleY = topY + 32 + 26;
 
                 guiGraphics.drawString(this.font, "Player Attributes:", leftPageX, attrTitleY, 0xFF333333, false);
@@ -1245,7 +1334,7 @@ public class JournalScreen extends Screen {
                 int textColor = isVillagerUnlocked ? 0xFF006400 : 0xFF8B0000;
                 String skillDisplay = entry.requiredSkill.equals("all_classes") ? "All" : entry.requiredSkill.substring(0, 1).toUpperCase() + entry.requiredSkill.substring(1);
 
-                // --- FORMATTING: Removed "Lvl" so it now displays cleanly as (Smithing 8) at full 100% font size! ---
+
                 String displayString = "• " + entry.displayName + " (" + skillDisplay + " " + entry.requiredLevel + ")";
 
                 int stringWidth = this.font.width(displayString);

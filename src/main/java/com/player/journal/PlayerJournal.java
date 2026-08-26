@@ -5,7 +5,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 
-
 @Mod("playerjournal")
 public class PlayerJournal {
 
@@ -18,8 +17,8 @@ public class PlayerJournal {
         com.player.journal.registry.ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         com.player.journal.registry.ModMenuTypes.MENUS.register(modEventBus);
 
+        // --- NEW: Capture the config instance so Cloth Config can force it to save to disk! ---
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.COMMON, com.player.journal.config.JournalConfig.SPEC);
-
 
         if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
             com.player.journal.client.ClientSetup.setupConfigScreen(modContainer);

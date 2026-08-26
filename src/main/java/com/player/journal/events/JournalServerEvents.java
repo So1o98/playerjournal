@@ -62,7 +62,6 @@ public class JournalServerEvents {
 
     private static final Map<UUID, Set<UUID>> MOB_ATTACKERS = new HashMap<>();
 
-
     private static int globalBuffTimer = 0;
 
 
@@ -87,7 +86,7 @@ public class JournalServerEvents {
                         if (!memberId.equals(player.getUUID())) {
                             ServerPlayer member = player.getServer().getPlayerList().getPlayer(memberId);
                             if (member != null && member.hasEffect(com.player.journal.registry.ModEffects.PARTY_XP_BUFF)) {
-                                if (player.distanceToSqr(member) <= 10000) { // 100 block radius limit
+                                if (player.distanceToSqr(member) <= 10000) {
                                     multiplier += 0.10f;
                                     break;
                                 }
@@ -107,14 +106,11 @@ public class JournalServerEvents {
     public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
         globalBuffTimer++;
 
-
         if (globalBuffTimer >= 72000) {
             globalBuffTimer = 0;
 
-
             if (event.getServer().overworld().random.nextFloat() < 0.20f) {
                 int durationTicks = 20 * 60 * 15;
-
 
                 globalBuffTimer = -durationTicks;
 
@@ -155,21 +151,17 @@ public class JournalServerEvents {
         long lastTick = ticks.getOrDefault(skill, 0L);
         float oldComboXp = combos.getOrDefault(skill, 0f);
 
-
         if (currentTick - lastTick > 60) {
             oldComboXp = 0f;
         }
-
 
         float newComboXp = oldComboXp + xpGained;
 
         combos.put(skill, newComboXp);
         ticks.put(skill, currentTick);
 
-
         net.minecraft.network.chat.MutableComponent combinedMessage = Component.empty();
         boolean first = true;
-
 
         boolean hasActiveBuff = getXpMultiplier(player) > 1.0f;
 
@@ -177,7 +169,6 @@ public class JournalServerEvents {
             String activeSkill = entry.getKey();
             float activeXp = entry.getValue();
             long activeLastTick = ticks.getOrDefault(activeSkill, 0L);
-
 
             if (currentTick - activeLastTick <= 60 && activeXp >= 1) {
                 if (!first) {
@@ -187,7 +178,6 @@ public class JournalServerEvents {
                 String skillDisplay = activeSkill.substring(0, 1).toUpperCase() + activeSkill.substring(1);
 
                 net.minecraft.ChatFormatting displayColor;
-
 
                 if (hasActiveBuff) {
                     displayColor = net.minecraft.ChatFormatting.GOLD;
@@ -262,6 +252,14 @@ public class JournalServerEvents {
             JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
             String targetId = BuiltInRegistries.ENTITY_TYPE.getKey(event.getEntityBeingMounted().getType()).toString();
 
+            // --- NEW: Check Custom API for Mounts FIRST ---
+            String apiFailMessage = getInteractRestrictionError(player, targetId);
+            if (apiFailMessage != null) {
+                event.setCanceled(true);
+                player.displayClientMessage(Component.literal(apiFailMessage).withStyle(net.minecraft.ChatFormatting.RED, net.minecraft.ChatFormatting.BOLD), true);
+                return;
+            }
+
             try {
                 for (String restriction : (List<String>) JournalConfig.AGILITY_MOUNTS.get()) {
                     String[] parts = restriction.split(";");
@@ -276,7 +274,7 @@ public class JournalServerEvents {
 
                                     if (data.getAgilityLevel() < reqLevel) {
                                         event.setCanceled(true);
-                                        player.displayClientMessage(Component.literal("Requires Agility Level " + reqLevel + " to ride this!").withStyle(net.minecraft.ChatFormatting.RED, net.minecraft.ChatFormatting.BOLD), true);
+                                        player.displayClientMessage(Component.literal(getFriendlyName(targetId) + " requires Agility Level " + reqLevel + " to ride!").withStyle(net.minecraft.ChatFormatting.RED, net.minecraft.ChatFormatting.BOLD), true);
                                         return;
                                     }
                                 }
@@ -311,7 +309,6 @@ public class JournalServerEvents {
             );
             PacketDistributor.sendToPlayer(serverPlayer, payload);
 
-            // Use the new helper method!
             syncConfigToPlayer(serverPlayer);
 
             PacketDistributor.sendToPlayer(serverPlayer, new com.player.journal.network.SyncPartyPayload(new java.util.ArrayList<>()));
@@ -329,21 +326,16 @@ public class JournalServerEvents {
     public static void onPlayerRespawn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) {
         if (!event.getEntity().level().isClientSide && event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
 
-            // 1. Maintain existing functionality: Sync attributes on respawn
             com.player.journal.data.JournalProgressionData data = player.getData(com.player.journal.registry.ModAttachments.JOURNAL_DATA);
             data.syncPlayerHealth(player);
             data.syncPlayerAgility(player);
 
-            // 2. New Party Respawn Logic
-            // If they are just returning from The End portal, don't teleport them to a party member
             if (event.isEndConquered()) return;
 
             java.util.List<java.util.UUID> partyMembers = com.player.journal.party.PartyManager.getPartyMembers(player.getUUID());
 
-            // If they aren't in a party (or are the only one), do nothing and respawn normally at bed
             if (partyMembers.size() <= 1) return;
 
-            // Get the exact dimension and coordinates where the player just died
             java.util.Optional<net.minecraft.core.GlobalPos> deathPosOpt = player.getLastDeathLocation();
             if (deathPosOpt.isEmpty()) return;
 
@@ -359,9 +351,8 @@ public class JournalServerEvents {
 
                 net.minecraft.server.level.ServerPlayer member = player.getServer().getPlayerList().getPlayer(memberId);
 
-                // Ensure the party member is online, alive, and in the exact same dimension the player died in
                 if (member != null && member.isAlive() && member.level() == deathLevel) {
-                    // Check if the death location was within 100 blocks (10000 sqr) of the party member
+
                     if (member.blockPosition().distSqr(deathPos.pos()) <= 10000) {
                         targetMember = member;
                         break;
@@ -369,25 +360,20 @@ public class JournalServerEvents {
                 }
             }
 
-            // If they died near a valid party member, teleport them!
             if (targetMember != null) {
                 net.minecraft.core.BlockPos spawnPos = findSafeSpawnNear(targetMember.serverLevel(), targetMember.blockPosition(), 5);
-
-                // Teleport the player to the safe spot in the party member's dimension
                 player.teleportTo(targetMember.serverLevel(), spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, player.getYRot(), player.getXRot());
             }
         }
     }
 
-    // Helper method to find a safe block to stand on so they don't spawn inside a wall or in lava
     private static net.minecraft.core.BlockPos findSafeSpawnNear(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos center, int radius) {
         for (int x = -radius; x <= radius; x++) {
             for (int z = -radius; z <= radius; z++) {
-                for (int y = 3; y >= -3; y--) { // Check slightly above and below the target's Y level
+                for (int y = 3; y >= -3; y--) {
                     net.minecraft.core.BlockPos check = center.offset(x, y, z);
                     net.minecraft.world.level.block.state.BlockState floor = level.getBlockState(check.below());
 
-                    // The block below must not be air/liquid, and the 2 blocks for the player's body must be empty air
                     if (!floor.isAir() && floor.getFluidState().isEmpty() && !floor.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK)
                             && level.isEmptyBlock(check) && level.isEmptyBlock(check.above())) {
                         return check;
@@ -395,7 +381,7 @@ public class JournalServerEvents {
                 }
             }
         }
-        return center; // Fallback directly to the party member's exact coordinates if no space is found
+        return center;
     }
 
     @SubscribeEvent
@@ -438,7 +424,6 @@ public class JournalServerEvents {
                             float xpMultiplier = JournalConfig.DEFENSE_SHIELD_XP_PER_DAMAGE.get().floatValue();
                             float baseXpGained = Math.max(1.0f, (blockedDamage * xpMultiplier));
 
-                            // Apply XP Buff!
                             float finalXp = Math.min(10.0f, baseXpGained) * getXpMultiplier(player);
 
                             boolean leveledUp = data.addDefenseXP(finalXp, player);
@@ -505,7 +490,6 @@ public class JournalServerEvents {
                             if (data.getDefenseLevel() >= 1) {
                                 float xpMultiplier = JournalConfig.DEFENSE_ARMOR_XP_PER_DAMAGE.get().floatValue();
 
-                                // Apply XP Buff!
                                 float finalXp = Math.max(1.0f, (blockedDamage * xpMultiplier)) * getXpMultiplier(player);
 
                                 boolean leveledUp = data.addDefenseXP(finalXp, player);
@@ -708,7 +692,6 @@ public class JournalServerEvents {
         }
     }
 
-
     @SubscribeEvent
     public static void onMeleeHitPost(LivingDamageEvent.Post event) {
         if (event.getEntity().level().isClientSide()) return;
@@ -781,10 +764,7 @@ public class JournalServerEvents {
             if (!attackerUUIDs.isEmpty()) {
                 float xpAmount = 0f;
 
-                // --- NEW: TOGGLE CHECK ---
                 if (com.player.journal.config.JournalConfig.ENABLE_CUSTOM_MOB_XP.get()) {
-
-                    // Toggle is ON: Use your custom config list
                     String entityIdentifier = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
                     java.util.List<String> mobXpRegistry = com.player.journal.config.JournalConfig.getAllMobXpValues();
 
@@ -802,11 +782,9 @@ public class JournalServerEvents {
                         }
                     }
                 } else {
-                    // Toggle is OFF: Fall back to the mob's vanilla experience drops so Combat leveling still works!
                     xpAmount = mob.getExperienceReward((net.minecraft.server.level.ServerLevel) mob.level(), event.getSource().getEntity());
                 }
 
-                // --- CONTINUE WITH EXISTING XP LOGIC ---
                 if (xpAmount > 0) {
                     for (java.util.UUID playerUUID : attackerUUIDs) {
                         net.minecraft.server.level.ServerPlayer player = (net.minecraft.server.level.ServerPlayer) mob.level().getPlayerByUUID(playerUUID);
@@ -815,7 +793,6 @@ public class JournalServerEvents {
                             com.player.journal.data.JournalProgressionData data = player.getData(com.player.journal.registry.ModAttachments.JOURNAL_DATA);
 
                             if (data.getCombatLevel() >= 1) {
-                                // Apply XP Buff!
                                 float finalXp = xpAmount * getXpMultiplier(player);
 
                                 if (data.addCombatXP(finalXp, player)) {
@@ -972,7 +949,7 @@ public class JournalServerEvents {
                 }
 
                 if (!failedSkills.isEmpty()) {
-                    return "Requires " + String.join(" & ", failedSkills) + "!";
+                    return getFriendlyName(itemIdentifier) + " requires " + String.join(" & ", failedSkills) + "!";
                 }
 
                 return null;
@@ -984,9 +961,15 @@ public class JournalServerEvents {
     public static String getFailedRequirementFromMap(ServerPlayer player, String itemIdentifier) {
         if (player.isCreative() || player.isSpectator()) return null;
 
-        Map<String, Integer> requirements = RestrictionDataLoader.getItemRestrictions(itemIdentifier);
+        // 1. Check Custom Java API Injections FIRST
+        Map<String, Integer> requirements = com.player.journal.api.PlayerJournalAPI.getCustomUsage(itemIdentifier);
 
-        // --- THE FIX: If the item isn't in a Datapack, fall back and check the TOML Config! ---
+        // 2. Fallback to Datapack if not in the API
+        if (requirements.isEmpty()) {
+            requirements = RestrictionDataLoader.getItemRestrictions(itemIdentifier);
+        }
+
+        // 3. Fallback to TOML Config if not in the Datapack
         if (requirements.isEmpty()) {
             return getFailedRequirement(player, itemIdentifier, getAllConfigUsageRestrictions());
         }
@@ -1023,10 +1006,51 @@ public class JournalServerEvents {
         }
 
         if (!failedSkills.isEmpty()) {
-            return "Requires " + String.join(" & ", failedSkills) + "!";
+            return getFriendlyName(itemIdentifier) + " requires " + String.join(" & ", failedSkills) + "!";
         }
         return null;
     }
+
+    // --- HELPER FOR INTERACT API ---
+    public static String getInteractRestrictionError(ServerPlayer player, String itemIdentifier) {
+        if (player.isCreative() || player.isSpectator()) return null;
+
+        java.util.Map<String, Integer> interactReqs = com.player.journal.api.PlayerJournalAPI.getCustomInteract(itemIdentifier);
+        if (interactReqs.isEmpty()) return null;
+
+        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        List<String> failedSkills = new ArrayList<>();
+
+        for (java.util.Map.Entry<String, Integer> req : interactReqs.entrySet()) {
+            String skill = req.getKey().toLowerCase();
+            int requiredLevel = req.getValue();
+            int playerLevel = 0;
+
+            switch (skill) {
+                case "vitality" -> playerLevel = data.getVitalityLevel();
+                case "agility" -> playerLevel = data.getAgilityLevel();
+                case "combat" -> playerLevel = data.getCombatLevel();
+                case "defense" -> playerLevel = data.getDefenseLevel();
+                case "mining" -> playerLevel = data.getMiningLevel();
+                case "farming" -> playerLevel = data.getFarmingLevel();
+                case "smithing" -> playerLevel = data.getSmithingLevel();
+                case "fishing" -> playerLevel = data.getFishingLevel();
+                case "archery" -> playerLevel = data.getArcheryLevel();
+                case "alchemy" -> playerLevel = data.getAlchemyLevel();
+            }
+
+            if (playerLevel < requiredLevel) {
+                String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                failedSkills.add(displaySkill + " " + requiredLevel);
+            }
+        }
+
+        if (!failedSkills.isEmpty()) {
+            return getFriendlyName(itemIdentifier) + " requires " + String.join(" & ", failedSkills) + "!";
+        }
+        return null;
+    }
+    // ------------------------------------
 
     @SubscribeEvent
     public static void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
@@ -1067,7 +1091,7 @@ public class JournalServerEvents {
 
             String failMessage = null;
             if (!failedSkills.isEmpty()) {
-                failMessage = "Requires " + String.join(" & ", failedSkills) + " to craft!";
+                failMessage = getFriendlyName(itemId) + " requires " + String.join(" & ", failedSkills) + " to craft!";
             } else if (craftReqs.isEmpty()) {
                 // Fallback to old config if no datapack entry exists
                 failMessage = getFailedRequirement(player, itemId, JournalConfig.getAllCraftingRestrictions());
@@ -1163,9 +1187,7 @@ public class JournalServerEvents {
 
             String itemId = BuiltInRegistries.ITEM.getKey(smeltedItem.getItem()).toString();
 
-
             float xpReward = (float) RestrictionDataLoader.getCraftingXp(itemId) * smeltedItem.getCount();
-
 
             if (xpReward <= 0) {
                 List<String> smeltingXpList = (List<String>) JournalConfig.SMITHING_SMELTING.get();
@@ -1261,11 +1283,18 @@ public class JournalServerEvents {
             ItemStack handStack = event.getItemStack();
             if (!handStack.isEmpty()) {
                 String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-                String failMessage = getFailedRequirementFromMap(player, itemId);
+
+                // 1. Check Custom API Interact Restrictions FIRST
+                String failMessage = getInteractRestrictionError(player, itemId);
+
+                // 2. Fallback to standard Usage restrictions if interact API is clear
+                if (failMessage == null) {
+                    failMessage = getFailedRequirementFromMap(player, itemId);
+                }
 
                 if (failMessage != null) {
                     event.setCanceled(true);
-                    player.displayClientMessage(Component.literal(failMessage), true);
+                    player.displayClientMessage(Component.literal(failMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
 
                     player.getServer().execute(() -> {
                         player.inventoryMenu.sendAllDataToRemote();
@@ -1280,15 +1309,103 @@ public class JournalServerEvents {
     @SubscribeEvent
     public static void onLeftClickBlock(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event) {
         if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
+
+            if (player.isCreative() || player.isSpectator()) return;
+
+            JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+
+            // 1. Evaluate Tool
+            String toolError = null;
             ItemStack handStack = event.getItemStack();
             if (!handStack.isEmpty()) {
                 String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-                String failMessage = getFailedRequirementFromMap(player, itemId);
-
-                if (failMessage != null) {
-                    event.setCanceled(true);
-                    player.displayClientMessage(Component.literal(failMessage), true);
+                String toolFailMessage = getFailedRequirementFromMap(player, itemId);
+                if (toolFailMessage != null) {
+                    toolError = toolFailMessage;
                 }
+            }
+
+            // 2. Evaluate Block
+            String blockError = null;
+            String blockIdentifier = BuiltInRegistries.BLOCK.getKey(event.getLevel().getBlockState(event.getPos()).getBlock()).toString();
+            boolean handledByApi = false;
+
+            java.util.Map<String, Integer> apiBlockReqs = com.player.journal.api.PlayerJournalAPI.getCustomBlockUsage(blockIdentifier);
+
+            if (!apiBlockReqs.isEmpty()) {
+                handledByApi = true;
+                for (java.util.Map.Entry<String, Integer> req : apiBlockReqs.entrySet()) {
+                    String skill = req.getKey().toLowerCase();
+                    int requiredLevel = req.getValue();
+
+                    int playerLevel = switch (skill) {
+                        case "mining" -> data.getMiningLevel();
+                        case "farming" -> data.getFarmingLevel();
+                        case "smithing" -> data.getSmithingLevel();
+                        default -> 0;
+                    };
+
+                    if (playerLevel < requiredLevel) {
+                        String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                        blockError = getFriendlyName(blockIdentifier) + " requires " + displaySkill + " " + requiredLevel + "!";
+                        break;
+                    }
+                }
+            }
+
+            if (!handledByApi) {
+                List<String> blockRestrictions = JournalConfig.getAllBlockRestrictions();
+                for (String restriction : blockRestrictions) {
+                    String[] parts = restriction.split(";");
+                    if (parts.length >= 2) {
+                        String[] groupedBlocks = parts[0].split(",");
+                        boolean blockMatches = false;
+                        for (String b : groupedBlocks) {
+                            if (b.trim().equals(blockIdentifier)) {
+                                blockMatches = true;
+                                break;
+                            }
+                        }
+
+                        if (blockMatches) {
+                            String[] skillReq = parts[1].split(":");
+                            if (skillReq.length == 2) {
+                                String skill = skillReq[0].toLowerCase();
+                                int requiredLevel = Integer.parseInt(skillReq[1]);
+
+                                int playerLevel = switch (skill) {
+                                    case "mining" -> data.getMiningLevel();
+                                    case "farming" -> data.getFarmingLevel();
+                                    case "smithing" -> data.getSmithingLevel();
+                                    default -> 0;
+                                };
+
+                                if (playerLevel < requiredLevel) {
+                                    String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                                    blockError = getFriendlyName(blockIdentifier) + " requires " + displaySkill + " " + requiredLevel + "!";
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 3. DISPLAY ERRORS INSTANTLY (If Tool OR Block failed)
+            if (toolError != null || blockError != null) {
+                event.setCanceled(true);
+                String combinedMessage = "";
+
+                if (toolError != null && blockError != null) {
+                    combinedMessage = blockError + " & " + toolError;
+                } else if (blockError != null) {
+                    combinedMessage = blockError;
+                } else {
+                    combinedMessage = toolError;
+                }
+
+                player.displayClientMessage(Component.literal(combinedMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
             }
         }
     }
@@ -1310,6 +1427,7 @@ public class JournalServerEvents {
     }
 
 
+
     @SuppressWarnings("unchecked")
     @SubscribeEvent
     public static void onBlockInteract(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
@@ -1320,11 +1438,18 @@ public class JournalServerEvents {
                 ItemStack handStack = event.getItemStack();
                 if (!handStack.isEmpty()) {
                     String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-                    String failMessage = getFailedRequirementFromMap(player, itemId);
+
+                    // 1. Check Custom API Interact Restrictions FIRST
+                    String failMessage = getInteractRestrictionError(player, itemId);
+
+                    // 2. Fallback to standard Usage restrictions if interact API is clear
+                    if (failMessage == null) {
+                        failMessage = getFailedRequirementFromMap(player, itemId);
+                    }
 
                     if (failMessage != null) {
                         event.setCanceled(true);
-                        player.displayClientMessage(Component.literal(failMessage), true);
+                        player.displayClientMessage(Component.literal(failMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
 
                         player.getServer().execute(() -> {
                             player.inventoryMenu.sendAllDataToRemote();
@@ -1336,12 +1461,21 @@ public class JournalServerEvents {
             }
 
             String blockId = BuiltInRegistries.BLOCK.getKey(event.getLevel().getBlockState(event.getPos()).getBlock()).toString();
-            List<String> utilityRestrictions = JournalConfig.getUtilityBlockRestrictions();
 
+            // --- NEW: Check Custom API for Block Interactions FIRST ---
+            String apiFailMessage = getInteractRestrictionError(player, blockId);
+            if (apiFailMessage != null) {
+                event.setCanceled(true);
+                player.displayClientMessage(Component.literal(apiFailMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
+                return;
+            }
+
+            // --- Fallback to Config Utility Restrictions ---
+            List<String> utilityRestrictions = JournalConfig.getUtilityBlockRestrictions();
             String failMessage = getFailedRequirement(player, blockId, utilityRestrictions);
             if (failMessage != null) {
                 event.setCanceled(true);
-                player.displayClientMessage(Component.literal(failMessage), true);
+                player.displayClientMessage(Component.literal(failMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
             }
         }
     }
@@ -1394,6 +1528,17 @@ public class JournalServerEvents {
                 }
             }
 
+            // --- NEW: Check Custom API for the Entity itself FIRST ---
+            String targetId = BuiltInRegistries.ENTITY_TYPE.getKey(event.getTarget().getType()).toString();
+            String entityFailMessage = getInteractRestrictionError(player, targetId);
+
+            if (entityFailMessage != null) {
+                event.setCanceled(true);
+                player.displayClientMessage(Component.literal(entityFailMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
+                return;
+            }
+            // ---------------------------------------------------------
+
             boolean isDisplayOrMerchant = event.getTarget() instanceof net.minecraft.world.entity.decoration.ItemFrame ||
                     event.getTarget() instanceof net.minecraft.world.entity.decoration.ArmorStand ||
                     event.getTarget() instanceof net.minecraft.world.entity.npc.Villager ||
@@ -1403,10 +1548,18 @@ public class JournalServerEvents {
                 ItemStack handStack = event.getItemStack();
                 if (!handStack.isEmpty()) {
                     String itemId = BuiltInRegistries.ITEM.getKey(handStack.getItem()).toString();
-                    String failMessage = getFailedRequirementFromMap(player, itemId);
+
+                    // 1. Check Custom API Interact Restrictions FIRST
+                    String failMessage = getInteractRestrictionError(player, itemId);
+
+                    // 2. Fallback to standard Usage restrictions if interact API is clear
+                    if (failMessage == null) {
+                        failMessage = getFailedRequirementFromMap(player, itemId);
+                    }
+
                     if (failMessage != null) {
                         event.setCanceled(true);
-                        player.displayClientMessage(Component.literal(failMessage), true);
+                        player.displayClientMessage(Component.literal(failMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
                         return;
                     }
                 }
@@ -1599,113 +1752,170 @@ public class JournalServerEvents {
 
             JournalProgressionData data = serverPlayer.getData(ModAttachments.JOURNAL_DATA);
 
+            // 1. Evaluate Tool (Save the error instead of returning)
+            String toolError = null;
             ItemStack mainHand = serverPlayer.getMainHandItem();
             if (!mainHand.isEmpty()) {
                 String itemIdentifier = BuiltInRegistries.ITEM.getKey(mainHand.getItem()).toString();
                 String toolFailMessage = getFailedRequirementFromMap(serverPlayer, itemIdentifier);
-
                 if (toolFailMessage != null) {
-                    event.setCanceled(true);
-                    serverPlayer.displayClientMessage(Component.literal(toolFailMessage), true);
-                    return;
+                    toolError = toolFailMessage;
                 }
             }
 
-            String blockIdentifier = BuiltInRegistries.BLOCK.getKey(event.getState().getBlock()).toString();
-            List<String> blockRestrictions = JournalConfig.getAllBlockRestrictions();
+            // 2. Evaluate Block (Save the error instead of returning)
+            String blockError = null;
+            float pendingXpReward = 0f;
+            String pendingXpSkill = null;
 
-            for (String restriction : blockRestrictions) {
-                String[] parts = restriction.split(";");
-                if (parts.length >= 2) {
-                    String[] groupedBlocks = parts[0].split(",");
-                    boolean blockMatches = false;
-                    for (String b : groupedBlocks) {
-                        if (b.trim().equals(blockIdentifier)) {
-                            blockMatches = true;
-                            break;
+            String blockIdentifier = BuiltInRegistries.BLOCK.getKey(event.getState().getBlock()).toString();
+            boolean handledByApi = false;
+
+            java.util.Map<String, Integer> apiBlockReqs = com.player.journal.api.PlayerJournalAPI.getCustomBlockUsage(blockIdentifier);
+
+            if (!apiBlockReqs.isEmpty()) {
+                handledByApi = true;
+                for (java.util.Map.Entry<String, Integer> req : apiBlockReqs.entrySet()) {
+                    String skill = req.getKey().toLowerCase();
+                    int requiredLevel = req.getValue();
+
+                    int playerLevel = switch (skill) {
+                        case "mining" -> data.getMiningLevel();
+                        case "farming" -> data.getFarmingLevel();
+                        case "smithing" -> data.getSmithingLevel();
+                        default -> 0;
+                    };
+
+                    if (playerLevel < requiredLevel) {
+                        String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                        blockError = getFriendlyName(blockIdentifier) + " requires " + displaySkill + " " + requiredLevel + "!";
+                        break;
+                    } else {
+                        float xpReward = com.player.journal.api.PlayerJournalAPI.getCustomBlockXp(blockIdentifier);
+                        if (xpReward > 0) {
+                            if (!skill.equals("farming") || isHarvestable(event.getState())) {
+                                pendingXpReward = xpReward;
+                                pendingXpSkill = skill;
+                            }
                         }
                     }
+                }
+            }
 
-                    if (blockMatches) {
-                        String[] skillReq = parts[1].split(":");
-                        if (skillReq.length == 2) {
-                            String skill = skillReq[0].toLowerCase();
-                            int requiredLevel = Integer.parseInt(skillReq[1]);
+            // 3. Fallback to Config Restrictions if API didn't handle it
+            if (!handledByApi) {
+                List<String> blockRestrictions = JournalConfig.getAllBlockRestrictions();
+                for (String restriction : blockRestrictions) {
+                    String[] parts = restriction.split(";");
+                    if (parts.length >= 2) {
+                        String[] groupedBlocks = parts[0].split(",");
+                        boolean blockMatches = false;
+                        for (String b : groupedBlocks) {
+                            if (b.trim().equals(blockIdentifier)) {
+                                blockMatches = true;
+                                break;
+                            }
+                        }
 
-                            int playerLevel = switch (skill) {
-                                case "mining" -> data.getMiningLevel();
-                                case "farming" -> data.getFarmingLevel();
-                                case "smithing" -> data.getSmithingLevel();
-                                default -> 0;
-                            };
+                        if (blockMatches) {
+                            String[] skillReq = parts[1].split(":");
+                            if (skillReq.length == 2) {
+                                String skill = skillReq[0].toLowerCase();
+                                int requiredLevel = Integer.parseInt(skillReq[1]);
 
-                            if (playerLevel < requiredLevel) {
-                                event.setCanceled(true);
-                                String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
-                                serverPlayer.displayClientMessage(Component.literal("Requires " + displaySkill + " " + requiredLevel + "!").withStyle(net.minecraft.ChatFormatting.RED), true);
-                                return;
-                            } else if (parts.length == 3) {
-                                float xpReward = Float.parseFloat(parts[2]);
-                                if (xpReward > 0) {
-                                    if (skill.equals("farming") && !isHarvestable(event.getState())) {
-                                        return;
-                                    }
+                                int playerLevel = switch (skill) {
+                                    case "mining" -> data.getMiningLevel();
+                                    case "farming" -> data.getFarmingLevel();
+                                    case "smithing" -> data.getSmithingLevel();
+                                    default -> 0;
+                                };
 
-                                    // Apply XP Buff!
-                                    float finalXp = xpReward * getXpMultiplier(serverPlayer);
-
-                                    boolean leveledUp = false;
-                                    boolean canEarnXp = false;
-
-                                    if (skill.equals("mining") && data.getMiningLevel() >= 1) {
-                                        leveledUp = data.addMiningXP(finalXp, serverPlayer);
-                                        canEarnXp = true;
-                                    } else if (skill.equals("farming") && data.getFarmingLevel() >= 1) {
-                                        leveledUp = data.addFarmingXP(finalXp, serverPlayer);
-                                        canEarnXp = true;
-                                    } else if (skill.equals("smithing") && data.getSmithingLevel() >= 1) {
-                                        leveledUp = data.addSmithingXP(finalXp, serverPlayer);
-                                        canEarnXp = true;
-                                    }
-
-                                    if (canEarnXp) {
-                                        SyncJournalDataPayload payload = new SyncJournalDataPayload(
-                                                data.getVitalityLevel(), data.getVitalityXP(),
-                                                data.getCombatLevel(), data.getCombatXP(),
-                                                data.getDefenseLevel(), data.getDefenseXP(),
-                                                data.getMiningLevel(), data.getMiningXP(),
-                                                data.getFarmingLevel(), data.getFarmingXP(),
-                                                data.getSmithingLevel(), data.getSmithingXP(),
-                                                data.getArcheryLevel(), data.getArcheryXP(),
-                                                data.getFishingLevel(), data.getFishingXP(),
-                                                data.getAgilityLevel(), data.getAgilityXP(),
-                                                data.getAlchemyLevel(), data.getAlchemyXP(),
-                                                data.getTornPages()
-                                        );
-                                        PacketDistributor.sendToPlayer(serverPlayer, payload);
-
-                                        if (leveledUp) {
-                                            String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
-                                            int levelDisplay = switch (skill) {
-                                                case "mining" -> data.getMiningLevel();
-                                                case "farming" -> data.getFarmingLevel();
-                                                case "smithing" -> data.getSmithingLevel();
-                                                default -> 0;
-                                            };
-                                            serverPlayer.displayClientMessage(Component.literal("§6§l" + displaySkill + " Level Up! §eYou are now level " + levelDisplay + "!"), false);
-                                            serverPlayer.level().playSound(null, serverPlayer.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
-                                            clearCombo(serverPlayer, skill);
-                                            checkAndBroadcastMilestone(serverPlayer, skill, levelDisplay);
-                                        } else {
-                                            displayComboXp(serverPlayer, skill, finalXp, skill.equals("mining") ? net.minecraft.ChatFormatting.AQUA : (skill.equals("farming") ? net.minecraft.ChatFormatting.YELLOW : net.minecraft.ChatFormatting.GRAY));
+                                if (playerLevel < requiredLevel) {
+                                    String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                                    blockError = getFriendlyName(blockIdentifier) + " requires " + displaySkill + " " + requiredLevel + "!";
+                                    break;
+                                } else if (parts.length == 3) {
+                                    float xpReward = Float.parseFloat(parts[2]);
+                                    if (xpReward > 0) {
+                                        if (!skill.equals("farming") || isHarvestable(event.getState())) {
+                                            pendingXpReward = xpReward;
+                                            pendingXpSkill = skill;
                                         }
-                                        sharePartyXP(serverPlayer, skill, finalXp);
                                     }
                                 }
                             }
+                            break;
                         }
-                        break;
                     }
+                }
+            }
+
+            // 4. DISPLAY ERRORS (If Tool OR Block failed)
+            if (toolError != null || blockError != null) {
+                event.setCanceled(true);
+                String combinedMessage = "";
+
+                if (toolError != null && blockError != null) {
+                    combinedMessage = blockError + " & " + toolError;
+                } else if (blockError != null) {
+                    combinedMessage = blockError;
+                } else {
+                    combinedMessage = toolError;
+                }
+
+                serverPlayer.displayClientMessage(Component.literal(combinedMessage).withStyle(net.minecraft.ChatFormatting.RED), true);
+                return;
+            }
+
+            // 5. GRANT XP (Only runs if BOTH the tool and block are valid)
+            if (pendingXpReward > 0 && pendingXpSkill != null) {
+                float finalXp = pendingXpReward * getXpMultiplier(serverPlayer);
+                boolean leveledUp = false;
+                boolean canEarnXp = false;
+
+                if (pendingXpSkill.equals("mining") && data.getMiningLevel() >= 1) {
+                    leveledUp = data.addMiningXP(finalXp, serverPlayer);
+                    canEarnXp = true;
+                } else if (pendingXpSkill.equals("farming") && data.getFarmingLevel() >= 1) {
+                    leveledUp = data.addFarmingXP(finalXp, serverPlayer);
+                    canEarnXp = true;
+                } else if (pendingXpSkill.equals("smithing") && data.getSmithingLevel() >= 1) {
+                    leveledUp = data.addSmithingXP(finalXp, serverPlayer);
+                    canEarnXp = true;
+                }
+
+                if (canEarnXp) {
+                    SyncJournalDataPayload payload = new SyncJournalDataPayload(
+                            data.getVitalityLevel(), data.getVitalityXP(),
+                            data.getCombatLevel(), data.getCombatXP(),
+                            data.getDefenseLevel(), data.getDefenseXP(),
+                            data.getMiningLevel(), data.getMiningXP(),
+                            data.getFarmingLevel(), data.getFarmingXP(),
+                            data.getSmithingLevel(), data.getSmithingXP(),
+                            data.getArcheryLevel(), data.getArcheryXP(),
+                            data.getFishingLevel(), data.getFishingXP(),
+                            data.getAgilityLevel(), data.getAgilityXP(),
+                            data.getAlchemyLevel(), data.getAlchemyXP(),
+                            data.getTornPages()
+                    );
+                    PacketDistributor.sendToPlayer(serverPlayer, payload);
+
+                    if (leveledUp) {
+                        String displaySkill = pendingXpSkill.substring(0, 1).toUpperCase() + pendingXpSkill.substring(1);
+                        int levelDisplay = switch (pendingXpSkill) {
+                            case "mining" -> data.getMiningLevel();
+                            case "farming" -> data.getFarmingLevel();
+                            case "smithing" -> data.getSmithingLevel();
+                            default -> 0;
+                        };
+                        serverPlayer.displayClientMessage(Component.literal("§6§l" + displaySkill + " Level Up! §eYou are now level " + levelDisplay + "!"), false);
+                        serverPlayer.level().playSound(null, serverPlayer.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
+                        clearCombo(serverPlayer, pendingXpSkill);
+                        checkAndBroadcastMilestone(serverPlayer, pendingXpSkill, levelDisplay);
+                    } else {
+                        displayComboXp(serverPlayer, pendingXpSkill, finalXp, pendingXpSkill.equals("mining") ? net.minecraft.ChatFormatting.AQUA : (pendingXpSkill.equals("farming") ? net.minecraft.ChatFormatting.YELLOW : net.minecraft.ChatFormatting.GRAY));
+                    }
+                    sharePartyXP(serverPlayer, pendingXpSkill, finalXp);
                 }
             }
         }
@@ -1910,7 +2120,7 @@ public class JournalServerEvents {
                 JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
                 data.setTornPages(data.getTornPages() + 1);
 
-                player.displayClientMessage(Component.literal("§d§lLucky! §eYou discovered a hidden Torn Page!"), false);
+                player.displayClientMessage(Component.literal("§e You discovered a Page!"), false);
                 player.level().playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.ENCHANTMENT_TABLE_USE, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.0F);
 
                 SyncJournalDataPayload payload = new SyncJournalDataPayload(
@@ -1948,12 +2158,10 @@ public class JournalServerEvents {
                     double distanceMoved = Math.sqrt(dx * dx + dz * dz);
 
                     if (distanceMoved > 0.1 && distanceMoved < 20.0) {
-                        // 1. Accumulate the UNBUFFED raw distance XP
                         float xpGained = (float) (distanceMoved * JournalConfig.AGILITY_XP_PER_BLOCK.get());
                         float totalPending = pendingAgilityXp.getOrDefault(id, 0f) + xpGained;
 
                         if (totalPending >= 10.0f) {
-                            // 2. NOW apply the XP buff to the big chunk so the player actually sees +15 pop up!
                             float finalXp = totalPending * getXpMultiplier(player);
 
                             JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
@@ -1986,9 +2194,9 @@ public class JournalServerEvents {
                                 }
                                 sharePartyXP(player, "agility", finalXp);
                             }
-                            pendingAgilityXp.put(id, 0f); // Reset bucket
+                            pendingAgilityXp.put(id, 0f);
                         } else {
-                            pendingAgilityXp.put(id, totalPending); // Keep filling bucket
+                            pendingAgilityXp.put(id, totalPending);
                         }
                     }
                 }
@@ -2007,12 +2215,10 @@ public class JournalServerEvents {
     public static void onAddReloadListeners(net.neoforged.neoforge.event.AddReloadListenerEvent event) {
         event.addListener(new com.player.journal.data.RestrictionDataLoader());
 
-        // If the server is running, broadcast the updated payload to all online players after a reload!
         if (event.getServerResources() != null) {
             net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
             if (server != null) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                    // Re-send the updated config payload with fresh datapack data
                     syncConfigToPlayer(player);
                 }
             }
@@ -2150,7 +2356,6 @@ public class JournalServerEvents {
 
                 if (earner.distanceToSqr(member) > 10000) continue;
 
-                // Make sure party members also benefit from their own XP buffs!
                 float buffedSharedXp = sharedXp * getXpMultiplier(member);
 
                 JournalProgressionData data = member.getData(ModAttachments.JOURNAL_DATA);
@@ -2255,5 +2460,32 @@ public class JournalServerEvents {
         all.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
         all.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
         return all;
+    }
+
+    private static String getFriendlyName(String id) {
+        try {
+            ResourceLocation loc = ResourceLocation.parse(id.trim());
+
+            if (BuiltInRegistries.ITEM.containsKey(loc) && BuiltInRegistries.ITEM.get(loc) != net.minecraft.world.item.Items.AIR) {
+                return BuiltInRegistries.ITEM.get(loc).getDescription().getString();
+            }
+            if (BuiltInRegistries.BLOCK.containsKey(loc) && BuiltInRegistries.BLOCK.get(loc) != net.minecraft.world.level.block.Blocks.AIR) {
+                return BuiltInRegistries.BLOCK.get(loc).getName().getString();
+            }
+            if (BuiltInRegistries.ENTITY_TYPE.containsKey(loc)) {
+                return BuiltInRegistries.ENTITY_TYPE.get(loc).getDescription().getString();
+            }
+        } catch (Exception e) {}
+
+        String[] parts = id.split(":");
+        String namePart = parts.length > 1 ? parts[1] : id;
+        String[] words = namePart.split("_");
+        StringBuilder friendlyName = new StringBuilder();
+        for (String word : words) {
+            if (word.length() > 0) {
+                friendlyName.append(word.substring(0, 1).toUpperCase()).append(word.substring(1)).append(" ");
+            }
+        }
+        return friendlyName.toString().trim();
     }
 }

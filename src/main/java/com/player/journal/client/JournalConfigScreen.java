@@ -19,19 +19,53 @@ public class JournalConfigScreen {
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
-        // ==========================================
-        //                GENERAL TAB
-        // ==========================================
+// ==========================================
+//                GENERAL TAB
+// ==========================================
         ConfigCategory generalCategory = builder.getOrCreateCategory(Component.literal("General"));
+
         generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Levels Per Page Reward"), JournalConfig.LEVELS_PER_PAGE_REWARD.get())
                 .setDefaultValue(3)
                 .setTooltip(Component.literal("How many skill levels are required to be rewarded with 1 Torn Page?\n(e.g. 5 = rewarded at level 5, 10, 15...)"))
                 .setSaveConsumer(JournalConfig.LEVELS_PER_PAGE_REWARD::set)
                 .build());
+
         generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Starting Torn Pages"), JournalConfig.STARTING_TORN_PAGES.get())
-                .setDefaultValue(8)
+                .setDefaultValue(5)
                 .setTooltip(Component.literal("How many Torn Pages should a player start with when they first join?"))
                 .setSaveConsumer(JournalConfig.STARTING_TORN_PAGES::set)
+                .build());
+
+// --- HUD OVERLAY SETTINGS ---
+        generalCategory.addEntry(entryBuilder.startDoubleField(Component.literal("Pinned Pages Scale"), JournalConfig.HUD_SCALE.get())
+                .setDefaultValue(1.0)
+                .setMin(0.1)
+                .setMax(3.0)
+                .setTooltip(Component.literal("Scale of the pinned pages overlay.\n(1.0 is normal, 0.75 is small, 1.5 is large)"))
+                .setSaveConsumer(JournalConfig.HUD_SCALE::set)
+                .build());
+
+        generalCategory.addEntry(entryBuilder.startStringDropdownMenu(Component.literal("Pinned Pages Anchor"), JournalConfig.HUD_ANCHOR.get())
+                .setDefaultValue("BOTTOM_RIGHT")
+                .setSelections(java.util.List.of("TOP_LEFT", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT"))
+                .setTooltip(Component.literal("Which corner to anchor the pinned pages HUD to."))
+                .setSaveConsumer(JournalConfig.HUD_ANCHOR::set)
+                .build());
+
+        generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Pinned Pages Offset X"), JournalConfig.HUD_OFFSET_X.get())
+                .setDefaultValue(5)
+                .setMin(0)
+                .setMax(2000)
+                .setTooltip(Component.literal("Horizontal distance from the edge of the screen."))
+                .setSaveConsumer(JournalConfig.HUD_OFFSET_X::set)
+                .build());
+
+        generalCategory.addEntry(entryBuilder.startIntField(Component.literal("Pinned Pages Offset Y"), JournalConfig.HUD_OFFSET_Y.get())
+                .setDefaultValue(5)
+                .setMin(0)
+                .setMax(2000)
+                .setTooltip(Component.literal("Vertical distance from the edge of the screen."))
+                .setSaveConsumer(JournalConfig.HUD_OFFSET_Y::set)
                 .build());
 
         // ==========================================
@@ -676,6 +710,12 @@ public class JournalConfigScreen {
                 )).setTooltip(Component.literal("Format: modid:item;skill:level")).setSaveConsumer(newValue -> JournalConfig.SMALL_SHIPS_ITEMS.set(newValue)).build());
         restrictionsCategory.addEntry(smallShipsCategory.build());
 
+        builder.setSavingRunnable(() -> {
+
+            JournalConfig.SPEC.save();
+        });
+
         return builder.build();
+
     }
 }

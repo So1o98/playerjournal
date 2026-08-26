@@ -7,6 +7,16 @@ import java.util.List;
 public class JournalConfig {
     public static final ModConfigSpec SPEC;
 
+    // --- GENERAL SETTINGS ---
+    public static final ModConfigSpec.IntValue LEVELS_PER_PAGE_REWARD;
+    public static final ModConfigSpec.IntValue STARTING_TORN_PAGES;
+
+    // --- CLIENT HUD OVERLAY SETTINGS ---
+    public static final ModConfigSpec.DoubleValue HUD_SCALE;
+    public static final ModConfigSpec.ConfigValue<String> HUD_ANCHOR;
+    public static final ModConfigSpec.IntValue HUD_OFFSET_X;
+    public static final ModConfigSpec.IntValue HUD_OFFSET_Y;
+
     // --- VITALITY SETTINGS ---
     public static final ModConfigSpec.DoubleValue XP_PER_HEART_HEALED;
     public static final ModConfigSpec.IntValue XP_BASE_REQUIREMENT;
@@ -152,19 +162,30 @@ public class JournalConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> IMMERSIVE_MACHINERY_ITEMS;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> IMMERSIVE_AIRCRAFT_ITEMS;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> SMALL_SHIPS_ITEMS;
-    public static final ModConfigSpec.IntValue LEVELS_PER_PAGE_REWARD;
-    public static final ModConfigSpec.IntValue STARTING_TORN_PAGES;
+
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
-        // ==========================================
+// ==========================================
         //                GENERAL SETTINGS
         // ==========================================
 
         builder.push("General");
         LEVELS_PER_PAGE_REWARD = builder.comment("How many skill levels are required to be rewarded with 1 Torn Page? (e.g. 5 = rewarded at level 5, 10, 15...)").defineInRange("levelsPerPageReward", 3, 1, 100);
-        STARTING_TORN_PAGES = builder.comment("How many Torn Pages should a player start with when they first join?").defineInRange("startingTornPages", 8, 0, 1000);
+        STARTING_TORN_PAGES = builder.comment("How many Torn Pages should a player start with when they first join?").defineInRange("startingTornPages", 5, 0, 1000);
+
+        // Removed the spaces from the push name!
+        builder.push("HUD_Overlay");
+        HUD_SCALE = builder.comment("Scale of the pinned pages overlay (1.0 is normal, 0.75 is small, 1.5 is large)")
+                .defineInRange("hud_scale", 1.0, 0.1, 3.0);
+        HUD_ANCHOR = builder.comment("Which corner to anchor the HUD to. Valid options: TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT")
+                .define("hud_anchor", "BOTTOM_RIGHT");
+        HUD_OFFSET_X = builder.comment("Horizontal offset from the edge of the screen")
+                .defineInRange("hud_offset_x", 5, 0, 2000);
+        HUD_OFFSET_Y = builder.comment("Vertical offset from the edge of the screen")
+                .defineInRange("hud_offset_y", 5, 0, 2000);
+        builder.pop();
         builder.pop();
 
         // ==========================================
@@ -426,6 +447,7 @@ public class JournalConfig {
         FARMING_CROPS = builder.comment("Format: block_id;skill:level;xp_reward (XP is awarded ONLY when fully grown!)").defineListAllowEmpty(List.of("farming_crops"), () -> List.of(
                 "minecraft:wheat;farming:1;3",
                 "minecraft:carrots;farming:2;4",
+                "minecraft:carrot;farming:2;4",
                 "minecraft:potatoes;farming:2;4",
                 "minecraft:beetroots;farming:3;5",
                 "minecraft:melon;farming:4;8",
@@ -1210,7 +1232,7 @@ public class JournalConfig {
                         "wizards:netherite_arcane_robe_feet;defense:8;alchemy:12",
 
                         "wizards:netherite_fire_robe_head;defense:9;alchemy:13",
-                        "wizards:netherite_fire_robe_chest;defense:9alchemy:13",
+                        "wizards:netherite_fire_robe_chest;defense:9;alchemy:13",
                         "wizards:netherite_fire_robe_legs;defense:9;alchemy:13",
                         "wizards:netherite_fire_robe_feet;defense:9;alchemy:13",
 
@@ -1592,7 +1614,6 @@ public class JournalConfig {
         return combined;
     }
 
-    // --- NEW HELPER METHOD FOR YOUR BACKEND / EVENTS ---
     @SuppressWarnings("unchecked")
     public static List<String> getAllMobXpValues() {
         List<String> combined = new ArrayList<>();

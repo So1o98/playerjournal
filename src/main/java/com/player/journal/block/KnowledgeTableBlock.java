@@ -23,7 +23,7 @@ import com.mojang.serialization.MapCodec;
 
 public class KnowledgeTableBlock extends BaseEntityBlock {
 
-    // --- 1. Define the FACING property ---
+
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
     private static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 12.0D, 16.0D);
@@ -36,17 +36,17 @@ public class KnowledgeTableBlock extends BaseEntityBlock {
 
     public KnowledgeTableBlock(Properties properties) {
         super(properties);
-        // --- 2. Set default facing state to North ---
+
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
-    // --- 3. Register the property to the block state ---
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
 
-    // --- 4. Set facing direction opposite to the player on placement ---
+
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());

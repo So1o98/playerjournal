@@ -1,4 +1,6 @@
 {
+  "category.playerjournal.main": "Player Journal",
+  "key.playerjournal.open": "Open Journal",
   "config.playerjournal.title": "Player Journal Configuration",
   "config.playerjournal.category.vitality": "Vitality",
   "config.playerjournal.levels_per_health_boost": "Levels Per Health Boost",
@@ -11,6 +13,7 @@
   "config.jade.plugin_playerjournal.villager_restriction": "Show Villager Restrictions",
   "config.jade.plugin_playerjournal.block_restriction": "Show Block Restrictions",
   "config.jade.plugin_playerjournal.animal_breeding": "Show Animal Breeding Restrictions",
+  "config.jade.plugin_playerjournal.entity_restriction": "Show Entity Restrictions",
   "item.playerjournal.farming_page": "Farming Page",
   "item.playerjournal.mining_page": "Mining Page",
   "item.playerjournal.smithing_page": "Smithing Page",

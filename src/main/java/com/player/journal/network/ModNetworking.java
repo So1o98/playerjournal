@@ -60,6 +60,7 @@ public class ModNetworking {
                 ReceivePartyInvitePayload.STREAM_CODEC,
                 ClientPayloadHandler::handleReceiveInvite
         );
+
     }
 
 }

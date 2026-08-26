@@ -19,10 +19,10 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
 
     private static final Gson GSON = new GsonBuilder().create();
 
-    // Usage & Equipment Memory
+
     public static final Map<String, Map<String, Integer>> DATAPACK_RESTRICTIONS = new HashMap<>();
 
-    // Crafting & Smithing Memory
+
     public static final Map<String, Map<String, Integer>> CRAFTING_RESTRICTIONS = new HashMap<>();
     public static final Map<String, Integer> CRAFTING_XP = new HashMap<>();
 
@@ -63,7 +63,7 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         if (!jsonObject.has("item")) return;
         String item = jsonObject.get("item").getAsString();
 
-        // 1. Parse Equipment/Usage Requirements
+
         if (jsonObject.has("requirements")) {
             JsonObject reqs = jsonObject.getAsJsonObject("requirements");
             Map<String, Integer> reqMap = new HashMap<>();
@@ -75,7 +75,7 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
             }
         }
 
-        // 2. Parse Crafting/Smithing Requirements
+
         if (jsonObject.has("crafting_requirements")) {
             JsonObject craftReqs = jsonObject.getAsJsonObject("crafting_requirements");
             Map<String, Integer> craftMap = new HashMap<>();
@@ -87,7 +87,7 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
             }
         }
 
-        // 3. Parse XP Reward (Optional)
+
         if (jsonObject.has("xp_reward")) {
             CRAFTING_XP.put(item, jsonObject.get("xp_reward").getAsInt());
         }
@@ -105,7 +105,7 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         return CRAFTING_XP.getOrDefault(itemId, 0);
     }
 
-    // Export Usage info for Payload
+
     public static List<String> exportDatapackAndConfig() {
         List<String> combined = new ArrayList<>(com.player.journal.config.JournalConfig.getAllItemRestrictions());
         for (Map.Entry<String, Map<String, Integer>> entry : DATAPACK_RESTRICTIONS.entrySet()) {
@@ -118,13 +118,13 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         return combined;
     }
 
-    // Export Crafting info for Payload
+
     public static List<String> exportCraftingDatapackAndConfig() {
         List<String> combined = new ArrayList<>(com.player.journal.config.JournalConfig.getAllCraftingRestrictions());
         for (Map.Entry<String, Map<String, Integer>> entry : CRAFTING_RESTRICTIONS.entrySet()) {
             StringBuilder sb = new StringBuilder(entry.getKey());
             for (Map.Entry<String, Integer> req : entry.getValue().entrySet()) {
-                // Formatting this as "item;smithing:level" perfectly mimics your config layout for the client!
+
                 sb.append(";").append(req.getKey()).append(":").append(req.getValue());
             }
             combined.add(sb.toString());

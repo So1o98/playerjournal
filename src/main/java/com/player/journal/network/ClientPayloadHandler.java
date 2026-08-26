@@ -173,6 +173,8 @@ public class ClientPayloadHandler {
         });
     }
 
+
+
     public static void handleInspectJournal(com.player.journal.network.InspectJournalPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
@@ -180,10 +182,6 @@ public class ClientPayloadHandler {
             }
         });
     }
-
-    // ==========================================
-    //               PARTY SYSTEM
-    // ==========================================
 
     public static List<PartyMember> partyMembers = new ArrayList<>();
 
@@ -207,11 +205,9 @@ public class ClientPayloadHandler {
             for (SyncPartyPayload.PartyMemberData data : payload.roster()) {
                 ResourceLocation skinLocation;
 
-
                 if (mc.getConnection() != null && mc.getConnection().getPlayerInfo(data.uuid()) != null) {
                     skinLocation = mc.getConnection().getPlayerInfo(data.uuid()).getSkin().texture();
                 } else {
-
                     skinLocation = mc.getSkinManager().getInsecureSkin(new com.mojang.authlib.GameProfile(data.uuid(), data.name())).texture();
                 }
 
@@ -219,12 +215,11 @@ public class ClientPayloadHandler {
             }
         });
     }
+
     public static void handleReceiveInvite(com.player.journal.network.ReceivePartyInvitePayload payload, net.neoforged.neoforge.network.handling.IPayloadContext context) {
         context.enqueueWork(() -> {
-            // Attempt to grab the player's skin from the connection, or fallback to default
             net.minecraft.client.multiplayer.PlayerInfo info = net.minecraft.client.Minecraft.getInstance().getConnection().getPlayerInfo(payload.inviterName());
             net.minecraft.resources.ResourceLocation skin = info != null ? info.getSkin().texture() : net.minecraft.client.resources.DefaultPlayerSkin.get(java.util.UUID.randomUUID()).texture();
-
 
             pendingInvites.add(new PartyMember(payload.inviterName(), skin, true));
         });

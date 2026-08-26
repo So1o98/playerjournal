@@ -1,5 +1,6 @@
 package com.player.journal.client.events;
 
+import com.player.journal.api.PlayerJournalAPI;
 import com.player.journal.config.JournalConfig;
 import com.player.journal.network.ClientPayloadHandler;
 import net.minecraft.ChatFormatting;
@@ -15,7 +16,9 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import com.player.journal.client.PartyOverlay;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @EventBusSubscriber(modid = "playerjournal", value = Dist.CLIENT)
 public class JournalClientEvents {
@@ -35,7 +38,7 @@ public class JournalClientEvents {
             }
         }
 
-        // --- Crafting Restrictions ---
+        // --- 1. Crafting Restrictions ---
         List<String> craftingRestrictions = ClientPayloadHandler.serverCraftingRestrictions;
         for (String restriction : craftingRestrictions) {
             String[] parts = restriction.split(";");
@@ -59,11 +62,54 @@ public class JournalClientEvents {
             }
         }
 
-        // --- Usage Restrictions (Now silently contains Datapacks via Payload Sync!) ---
+        // --- 2. Check Custom API Restrictions FIRST ---
+        Map<String, Integer> apiReqs = new LinkedHashMap<>();
+
+        Map<String, Integer> usageApi = PlayerJournalAPI.getCustomUsage(itemId);
+        if (usageApi != null) apiReqs.putAll(usageApi);
+
+        Map<String, Integer> interactApi = PlayerJournalAPI.getCustomInteract(itemId);
+        if (interactApi != null) {
+            interactApi.forEach((k, v) -> apiReqs.merge(k, v, Math::max));
+        }
+
+        Map<String, Integer> blockApi = PlayerJournalAPI.getCustomBlockUsage(itemId);
+        if (blockApi != null) {
+            blockApi.forEach((k, v) -> apiReqs.merge(k, v, Math::max));
+        }
+
+        if (!potionId.isEmpty()) {
+            Map<String, Integer> potionUsage = PlayerJournalAPI.getCustomUsage(potionId);
+            if (potionUsage != null) {
+                potionUsage.forEach((k, v) -> apiReqs.merge(k, v, Math::max));
+            }
+        }
+
+        if (!apiReqs.isEmpty()) {
+            List<String> failedSkills = new ArrayList<>();
+            for (Map.Entry<String, Integer> entry : apiReqs.entrySet()) {
+                String skill = entry.getKey().trim().toLowerCase();
+                int reqLevel = entry.getValue();
+                int playerLevel = getClientLevel(skill);
+
+                if (playerLevel < reqLevel) {
+                    String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
+                    failedSkills.add("Level " + reqLevel + " " + displaySkill);
+                }
+            }
+
+            if (!failedSkills.isEmpty()) {
+                event.getToolTip().add(Component.literal("[!] Restricted: " + String.join(" & ", failedSkills))
+                        .withStyle(ChatFormatting.RED));
+            }
+            return; // Skip fallback if API handles it
+        }
+
+        // --- 3. Fallback Config Restrictions ---
         List<String> usageRestrictions = new ArrayList<>();
         usageRestrictions.addAll(ClientPayloadHandler.serverArmorRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverPotionRestrictions);
-        usageRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions); // <-- Datapack data is hiding in here!
+        usageRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverJewelryRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverFarmersDelightRestrictions);
         usageRestrictions.addAll(ClientPayloadHandler.serverPaladinsPriestsArmors);
@@ -107,20 +153,7 @@ public class JournalClientEvents {
 
                     String skill = skillReq[0].trim().toLowerCase();
                     int reqLevel = Integer.parseInt(skillReq[1].trim());
-                    int playerLevel = 0;
-
-                    switch (skill) {
-                        case "vitality" -> playerLevel = ClientPayloadHandler.vitalityLevel;
-                        case "agility" -> playerLevel = ClientPayloadHandler.agilityLevel;
-                        case "combat" -> playerLevel = ClientPayloadHandler.combatLevel;
-                        case "defense" -> playerLevel = ClientPayloadHandler.defenseLevel;
-                        case "farming" -> playerLevel = ClientPayloadHandler.farmingLevel;
-                        case "mining" -> playerLevel = ClientPayloadHandler.miningLevel;
-                        case "smithing" -> playerLevel = ClientPayloadHandler.smithingLevel;
-                        case "archery" -> playerLevel = ClientPayloadHandler.archeryLevel;
-                        case "fishing" -> playerLevel = ClientPayloadHandler.fishingLevel;
-                        case "alchemy" -> playerLevel = ClientPayloadHandler.alchemyLevel;
-                    }
+                    int playerLevel = getClientLevel(skill);
 
                     if (playerLevel < reqLevel) {
                         String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
@@ -151,7 +184,29 @@ public class JournalClientEvents {
     }
 
     @SubscribeEvent
-    public static void registerGuiOverlays(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
-        event.registerAboveAll(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("playerjournal", "party_hud"), PartyOverlay.HUD_PARTY);
+    public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+
+        if (mc.player != null && mc.screen == null) {
+            while (com.player.journal.client.JournalKeybindings.OPEN_JOURNAL_KEY.consumeClick()) {
+                mc.setScreen(new com.player.journal.client.JournalScreen());
+            }
+        }
+    }
+
+    private static int getClientLevel(String skill) {
+        return switch (skill.toLowerCase()) {
+            case "vitality" -> ClientPayloadHandler.vitalityLevel;
+            case "agility" -> ClientPayloadHandler.agilityLevel;
+            case "combat" -> ClientPayloadHandler.combatLevel;
+            case "defense" -> ClientPayloadHandler.defenseLevel;
+            case "farming" -> ClientPayloadHandler.farmingLevel;
+            case "mining" -> ClientPayloadHandler.miningLevel;
+            case "smithing" -> ClientPayloadHandler.smithingLevel;
+            case "archery" -> ClientPayloadHandler.archeryLevel;
+            case "fishing" -> ClientPayloadHandler.fishingLevel;
+            case "alchemy" -> ClientPayloadHandler.alchemyLevel;
+            default -> 0;
+        };
     }
 }
