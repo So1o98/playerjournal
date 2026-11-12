@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "facing=north,right_half=false": { "model": "playerjournal:block/research_bench_left", "y": 0 },
+    "facing=east,right_half=false":  { "model": "playerjournal:block/research_bench_left", "y": 90 },
+    "facing=south,right_half=false": { "model": "playerjournal:block/research_bench_left", "y": 180 },
+    "facing=west,right_half=false":  { "model": "playerjournal:block/research_bench_left", "y": 270 },
+
+    "facing=north,right_half=true":  { "model": "playerjournal:block/research_bench_right", "y": 0 },
+    "facing=east,right_half=true":   { "model": "playerjournal:block/research_bench_right", "y": 90 },
+    "facing=south,right_half=true":  { "model": "playerjournal:block/research_bench_right", "y": 180 },
+    "facing=west,right_half=true":   { "model": "playerjournal:block/research_bench_right", "y": 270 }
+  }
+}
