@@ -1,44 +1,58 @@
 package com.player.journal.client.events;
 
 import com.player.journal.api.PlayerJournalAPI;
-import com.player.journal.config.JournalConfig;
+import com.player.journal.client.JournalKeybindings;
+import com.player.journal.client.JournalScreen;
 import com.player.journal.network.ClientPayloadHandler;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PotionItem;
 import net.minecraft.world.item.alchemy.PotionContents;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
-import com.player.journal.client.PartyOverlay;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@EventBusSubscriber(modid = "playerjournal", value = Dist.CLIENT)
 public class JournalClientEvents {
 
-    @SubscribeEvent
-    public static void onItemTooltip(ItemTooltipEvent event) {
-        ItemStack stack = event.getItemStack();
+    public static void register() {
+        ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
+            onItemTooltip(stack, lines);
+        });
+
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (mc.player != null && mc.screen == null) {
+                while (JournalKeybindings.OPEN_JOURNAL_KEY.consumeClick()) {
+                    mc.setScreen(new JournalScreen());
+                }
+            }
+        });
+    }
+
+    public static void onItemTooltip(ItemStack stack, List<Component> tooltip) {
         if (stack.isEmpty()) return;
 
         String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
 
         String potionId = "";
         if (stack.getItem() instanceof PotionItem) {
-            PotionContents contents = stack.get(net.minecraft.core.component.DataComponents.POTION_CONTENTS);
+            PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
             if (contents != null && contents.potion().isPresent()) {
                 potionId = "potion:" + contents.potion().get().unwrapKey().get().location().toString();
             }
         }
 
-        // --- NEW: Check if the player has researched this item ---
         boolean isResearched = false;
         if (ClientPayloadHandler.researchedItems != null) {
             if (ClientPayloadHandler.researchedItems.contains(itemId) ||
@@ -47,7 +61,7 @@ public class JournalClientEvents {
             }
         }
 
-        // Crafting Restrictions
+
         List<String> craftingRestrictions = ClientPayloadHandler.serverCraftingRestrictions;
         for (String restriction : craftingRestrictions) {
             String[] parts = restriction.split(";");
@@ -64,9 +78,9 @@ public class JournalClientEvents {
                         int reqLevel = Integer.parseInt(skillReq[1].trim());
                         if (ClientPayloadHandler.smithingLevel < reqLevel) {
                             if (isResearched) {
-                                event.getToolTip().add(Component.literal("[!] Researched (Crafting Unlocked)").withStyle(ChatFormatting.GREEN));
+                                tooltip.add(Component.literal("[!] Researched (Crafting Unlocked)").withStyle(ChatFormatting.GREEN));
                             } else {
-                                event.getToolTip().add(Component.literal("Requires Smithing " + reqLevel + " to craft!")
+                                tooltip.add(Component.literal("Requires Smithing " + reqLevel + " to craft!")
                                         .withStyle(ChatFormatting.RED));
                             }
                         }
@@ -74,7 +88,6 @@ public class JournalClientEvents {
                 }
             }
         }
-
 
         // API Requirements
         Map<String, Integer> apiReqs = new LinkedHashMap<>();
@@ -114,15 +127,14 @@ public class JournalClientEvents {
 
             if (!failedSkills.isEmpty()) {
                 if (isResearched) {
-                    event.getToolTip().add(Component.literal("[!] Researched (Unlocked)").withStyle(ChatFormatting.GREEN));
+                    tooltip.add(Component.literal("[!] Researched (Unlocked)").withStyle(ChatFormatting.GREEN));
                 } else {
-                    event.getToolTip().add(Component.literal("[!] Restricted: " + String.join(" & ", failedSkills))
+                    tooltip.add(Component.literal("[!] Restricted: " + String.join(" & ", failedSkills))
                             .withStyle(ChatFormatting.RED));
                 }
             }
             return;
         }
-
 
         // Server Payload Restrictions
         List<String> usageRestrictions = new ArrayList<>();
@@ -181,9 +193,9 @@ public class JournalClientEvents {
 
                 if (!failedSkills.isEmpty()) {
                     if (isResearched) {
-                        event.getToolTip().add(Component.literal("[!] Researched (Unlocked)").withStyle(ChatFormatting.GREEN));
+                        tooltip.add(Component.literal("[!] Researched (Unlocked)").withStyle(ChatFormatting.GREEN));
                     } else {
-                        event.getToolTip().add(Component.literal("[!] Restricted: " + String.join(" & ", failedSkills))
+                        tooltip.add(Component.literal("[!] Restricted: " + String.join(" & ", failedSkills))
                                 .withStyle(ChatFormatting.RED));
                     }
                 }
@@ -192,27 +204,16 @@ public class JournalClientEvents {
         }
     }
 
-    public static class BookButton extends net.minecraft.client.gui.components.Button {
+    public static class BookButton extends Button {
         public BookButton(int x, int y, OnPress onPress) {
-            super(x, y, 20, 20, Component.empty(), onPress, net.minecraft.client.gui.components.Button.DEFAULT_NARRATION);
-            this.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Player Journal")));
+            super(x, y, 20, 20, Component.empty(), onPress, Button.DEFAULT_NARRATION);
+            this.setTooltip(Tooltip.create(Component.literal("Player Journal")));
         }
 
         @Override
-        public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
-            guiGraphics.renderItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), this.getX() + 2, this.getY() + 2);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-
-        if (mc.player != null && mc.screen == null) {
-            while (com.player.journal.client.JournalKeybindings.OPEN_JOURNAL_KEY.consumeClick()) {
-                mc.setScreen(new com.player.journal.client.JournalScreen());
-            }
+            guiGraphics.renderItem(new ItemStack(Items.BOOK), this.getX() + 2, this.getY() + 2);
         }
     }
 

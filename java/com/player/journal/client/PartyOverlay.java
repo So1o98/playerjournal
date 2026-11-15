@@ -36,16 +36,17 @@ public class PartyOverlay {
 
         float opacity = 0.70F;
 
-        // 1. Draw the background texture
+
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, opacity);
         guiGraphics.blit(PARTY_TEXTURE, x, y, 0, 0, imageWidth, imageHeight, imageWidth, imageHeight);
 
         int headSize = 16;
 
-        int normalTextColor = 0xB3333333;
-        int outOfRangeTextColor = 0xB3AAAAAA;
 
-        // The exact inverse of your GUI scale to keep text at 100% size
+        int normalTextColor = 0xFF000000;
+        int outOfRangeTextColor = 0xFFAAAAAA;
+
+
         float textScale = 1.0f / scale;
 
         for (int i = 0; i < Math.min(3, ClientPayloadHandler.partyMembers.size()); i++) {
@@ -71,15 +72,14 @@ public class PartyOverlay {
             }
             PlayerFaceRenderer.draw(guiGraphics, member.skin, headX, targetY, headSize);
 
-            // 3. Draw Unscaled Name Text
+
             guiGraphics.pose().pushPose();
-            // Translate to the scaled coordinate first, then apply the inverse scale
             guiGraphics.pose().translate(nameTextX, targetY + 3, 0);
             guiGraphics.pose().scale(textScale, textScale, 1.0f);
             guiGraphics.drawString(mc.font, member.name, 0, 0, isOutOfRange ? outOfRangeTextColor : normalTextColor, false);
             guiGraphics.pose().popPose();
 
-            // 4. Draw Unscaled HP Text
+
             String hpText = (int)currentHp + " HP";
             guiGraphics.pose().pushPose();
             guiGraphics.pose().translate(hpTextX, targetY + 3, 0);

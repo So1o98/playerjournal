@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -15,19 +16,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
+public class RestrictionDataLoader extends SimpleJsonResourceReloadListener implements IdentifiableResourceReloadListener {
 
     private static final Gson GSON = new GsonBuilder().create();
-
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("playerjournal", "journal_restrictions");
 
     public static final Map<String, Map<String, Integer>> DATAPACK_RESTRICTIONS = new HashMap<>();
-
-
     public static final Map<String, Map<String, Integer>> CRAFTING_RESTRICTIONS = new HashMap<>();
     public static final Map<String, Integer> CRAFTING_XP = new HashMap<>();
 
     public RestrictionDataLoader() {
         super(GSON, "journal_restrictions");
+    }
+
+    @Override
+    public ResourceLocation getFabricId() {
+        return ID;
     }
 
     @Override
@@ -63,7 +67,6 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         if (!jsonObject.has("item")) return;
         String item = jsonObject.get("item").getAsString();
 
-
         if (jsonObject.has("requirements")) {
             JsonObject reqs = jsonObject.getAsJsonObject("requirements");
             Map<String, Integer> reqMap = new HashMap<>();
@@ -75,7 +78,6 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
             }
         }
 
-
         if (jsonObject.has("crafting_requirements")) {
             JsonObject craftReqs = jsonObject.getAsJsonObject("crafting_requirements");
             Map<String, Integer> craftMap = new HashMap<>();
@@ -86,7 +88,6 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
                 CRAFTING_RESTRICTIONS.put(item, craftMap);
             }
         }
-
 
         if (jsonObject.has("xp_reward")) {
             CRAFTING_XP.put(item, jsonObject.get("xp_reward").getAsInt());
@@ -105,7 +106,6 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         return CRAFTING_XP.getOrDefault(itemId, 0);
     }
 
-
     public static List<String> exportDatapackAndConfig() {
         List<String> combined = new ArrayList<>(com.player.journal.config.JournalConfig.getAllItemRestrictions());
         for (Map.Entry<String, Map<String, Integer>> entry : DATAPACK_RESTRICTIONS.entrySet()) {
@@ -118,13 +118,11 @@ public class RestrictionDataLoader extends SimpleJsonResourceReloadListener {
         return combined;
     }
 
-
     public static List<String> exportCraftingDatapackAndConfig() {
         List<String> combined = new ArrayList<>(com.player.journal.config.JournalConfig.getAllCraftingRestrictions());
         for (Map.Entry<String, Map<String, Integer>> entry : CRAFTING_RESTRICTIONS.entrySet()) {
             StringBuilder sb = new StringBuilder(entry.getKey());
             for (Map.Entry<String, Integer> req : entry.getValue().entrySet()) {
-
                 sb.append(";").append(req.getKey()).append(":").append(req.getValue());
             }
             combined.add(sb.toString());

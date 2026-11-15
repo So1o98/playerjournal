@@ -3,6 +3,9 @@ package com.player.journal.item;
 import com.player.journal.registry.ModEffects;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -12,11 +15,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
 import net.minecraft.world.item.UseAnim;
-import net.minecraft.world.level.Level;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 
 public class EnchantedKnowledgeItem extends Item {
 
@@ -46,7 +46,6 @@ public class EnchantedKnowledgeItem extends Item {
             int durationTicks = 20 * 60 * 15;
             int buffType = 0;
 
-
             CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
             if (customData.contains("BuffDuration")) {
                 durationTicks = customData.copyTag().getInt("BuffDuration");
@@ -55,13 +54,11 @@ public class EnchantedKnowledgeItem extends Item {
                 buffType = customData.copyTag().getInt("BuffType");
             }
 
-
             var effect = switch (buffType) {
                 case 1 -> ModEffects.PARTY_XP_BUFF;
                 case 2 -> ModEffects.GLOBAL_XP_BUFF;
                 default -> ModEffects.PERSONAL_XP_BUFF;
             };
-
 
             if (buffType == 2) {
                 for (ServerPlayer onlinePlayer : player.getServer().getPlayerList().getPlayers()) {
@@ -70,9 +67,7 @@ public class EnchantedKnowledgeItem extends Item {
                 player.getServer().getPlayerList().broadcastSystemMessage(
                         Component.literal("§6[Server] §e" + player.getName().getString() + " activated a Global XP Buff for " + (durationTicks / 1200) + " minutes!"), false
                 );
-            }
-
-            else {
+            } else {
                 player.addEffect(new MobEffectInstance(effect, durationTicks, 0, false, false, true));
             }
 

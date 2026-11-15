@@ -14,7 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.fml.loading.FMLPaths;
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -287,7 +287,7 @@ public class PreviewJournalScreen extends Screen {
 
     private void generateConfigFile() {
         try {
-            Path configPath = FMLPaths.CONFIGDIR.get().resolve("journal_scanned_" + targetModId + ".txt");
+            Path configPath = FabricLoader.getInstance().getConfigDir().resolve("journal_scanned_" + targetModId + ".txt");
             try (FileWriter writer = new FileWriter(configPath.toFile())) {
                 writer.write("# --- Scanned Items for " + targetModId + " ---\n");
                 writer.write("# Copy and paste these lines directly into your TOML config lists!\n\n");

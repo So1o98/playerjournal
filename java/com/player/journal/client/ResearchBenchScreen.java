@@ -9,7 +9,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 public class ResearchBenchScreen extends AbstractContainerScreen<ResearchBenchMenu> {
 
-    // Uses the "playerjournal" namespace for your mod's assets
+
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/container/research_bench.png");
 
     public ResearchBenchScreen(ResearchBenchMenu menu, Inventory playerInventory, Component title) {
@@ -27,7 +27,7 @@ public class ResearchBenchScreen extends AbstractContainerScreen<ResearchBenchMe
 
         int frame = this.menu.getProgressFrame();
         if (frame > 0) {
-            // Renders the specific sprite (progress_1 to progress_16) dynamically
+
             ResourceLocation sprite = ResourceLocation.fromNamespaceAndPath("playerjournal", "container/research_bench/progress_" + frame);
             int spriteWidth = 30;
             int spriteHeight = 16;

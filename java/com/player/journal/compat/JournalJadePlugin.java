@@ -18,8 +18,8 @@ public class JournalJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(BlockRestrictionProvider.INSTANCE, Block.class);
 
 
-        registration.registerEntityComponent(VillagerRestrictionProvider.INSTANCE, Villager.class);
-        registration.registerEntityComponent(VillagerRestrictionProvider.INSTANCE, WanderingTrader.class);
+        registration.registerEntityComponent(com.player.journal.compat.VillagerRestrictionProvider.INSTANCE, Villager.class);
+        registration.registerEntityComponent(com.player.journal.compat.VillagerRestrictionProvider.INSTANCE, WanderingTrader.class);
 
 
         registration.registerEntityComponent(AnimalBreedingProvider.INSTANCE, Animal.class);

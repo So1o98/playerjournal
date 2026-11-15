@@ -1,20 +1,35 @@
 package com.player.journal.registry;
 
 import com.player.journal.inventory.KnowledgeTableMenu;
+import com.player.journal.inventory.ResearchBenchMenu;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
-import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.function.Supplier;
 
 public class ModMenuTypes {
-    public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(BuiltInRegistries.MENU, "playerjournal");
 
-    public static final DeferredHolder<MenuType<?>, MenuType<KnowledgeTableMenu>> KNOWLEDGE_TABLE_MENU = MENUS.register("knowledge_table_menu",
-            () -> IMenuTypeExtension.create((windowId, inv, data) -> new KnowledgeTableMenu(windowId, inv)));
+    private static final MenuType<KnowledgeTableMenu> KNOWLEDGE_TABLE_MENU_INSTANCE = Registry.register(
+            BuiltInRegistries.MENU,
+            ResourceLocation.fromNamespaceAndPath("playerjournal", "knowledge_table_menu"),
+            new MenuType<>(KnowledgeTableMenu::new, FeatureFlags.DEFAULT_FLAGS)
+    );
 
-    public static final java.util.function.Supplier<net.minecraft.world.inventory.MenuType<com.player.journal.inventory.ResearchBenchMenu>> RESEARCH_BENCH =
-            MENUS.register("research_bench", () -> net.neoforged.neoforge.common.extensions.IMenuTypeExtension.create(
-                    com.player.journal.inventory.ResearchBenchMenu::new
-            ));
+    private static final MenuType<ResearchBenchMenu> RESEARCH_BENCH_INSTANCE = Registry.register(
+            BuiltInRegistries.MENU,
+            ResourceLocation.fromNamespaceAndPath("playerjournal", "research_bench"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, pos) -> new ResearchBenchMenu(syncId, inventory, pos), BlockPos.STREAM_CODEC)
+    );
+
+    public static final Supplier<MenuType<KnowledgeTableMenu>> KNOWLEDGE_TABLE_MENU = () -> KNOWLEDGE_TABLE_MENU_INSTANCE;
+    public static final Supplier<MenuType<ResearchBenchMenu>> RESEARCH_BENCH = () -> RESEARCH_BENCH_INSTANCE;
+
+    public static void register() {
+        // Triggers static initialization
+    }
 }

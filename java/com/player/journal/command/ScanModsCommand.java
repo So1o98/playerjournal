@@ -3,6 +3,12 @@ package com.player.journal.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.player.journal.client.PreviewJournalScreen;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.component.DataComponents;
@@ -17,8 +23,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -38,9 +42,9 @@ public class ScanModsCommand {
                                 .then(Commands.argument("modid", StringArgumentType.word())
                                         .suggests((context, builder) -> {
                                             String remaining = builder.getRemaining().toLowerCase();
-                                            for (var mod : ModList.get().getMods()) {
-                                                String modId = mod.getModId();
-                                                if (!modId.equals("minecraft") && !modId.equals("neoforge") && modId.startsWith(remaining)) {
+                                            for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+                                                String modId = mod.getMetadata().getId();
+                                                if (!modId.equals("minecraft") && !modId.equals("fabricloader") && !modId.equals("java") && modId.startsWith(remaining)) {
                                                     builder.suggest(modId);
                                                 }
                                             }
@@ -56,7 +60,6 @@ public class ScanModsCommand {
     private static int executeScan(CommandContext<CommandSourceStack> context, String targetModId) {
         CommandSourceStack source = context.getSource();
         source.sendSuccess(() -> Component.literal("§eScanning mod: " + targetModId + "..."), false);
-
 
         List<Item> modItems = new ArrayList<>();
         for (Item item : BuiltInRegistries.ITEM) {
@@ -86,19 +89,16 @@ public class ScanModsCommand {
             ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
             String itemStr = id.toString();
 
-
             String allocation = determineAllocation(item, itemStr, setLevelConsensus);
             if (allocation != null) {
                 equipmentResults.add(allocation);
             }
-
 
             String craftAllocation = determineCraftingAllocation(item, itemStr, setLevelConsensus);
             if (craftAllocation != null) {
                 craftingResults.add(craftAllocation);
             }
         }
-
 
         List<String> mobXpResults = new ArrayList<>();
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
@@ -117,7 +117,6 @@ public class ScanModsCommand {
             source.sendFailure(Component.literal("§cNo applicable items or entities found for mod: " + targetModId));
             return 0;
         }
-
 
         List<String> combinedResults = new ArrayList<>();
 
@@ -138,16 +137,13 @@ public class ScanModsCommand {
             combinedResults.addAll(mobXpResults);
         }
 
-
         boolean onlyMobXp = equipmentResults.isEmpty() && craftingResults.isEmpty() && !mobXpResults.isEmpty();
 
-
-        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient() && !onlyMobXp) {
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT && !onlyMobXp) {
             openClientPreview(targetModId, combinedResults);
         } else {
-
             try {
-                Path configPath = FMLPaths.CONFIGDIR.get().resolve("journal_scanned_" + targetModId + ".txt");
+                Path configPath = FabricLoader.getInstance().getConfigDir().resolve("journal_scanned_" + targetModId + ".txt");
                 try (FileWriter writer = new FileWriter(configPath.toFile())) {
                     writer.write("# ==========================================\n");
                     writer.write("# Scanned Configurations for: " + targetModId + "\n");
@@ -175,14 +171,12 @@ public class ScanModsCommand {
         return 1;
     }
 
-
-    @net.neoforged.api.distmarker.OnlyIn(net.neoforged.api.distmarker.Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     private static void openClientPreview(String targetModId, List<String> results) {
-        net.minecraft.client.Minecraft.getInstance().execute(() -> {
-            net.minecraft.client.Minecraft.getInstance().setScreen(new com.player.journal.client.PreviewJournalScreen(targetModId, results));
+        Minecraft.getInstance().execute(() -> {
+            Minecraft.getInstance().setScreen(new PreviewJournalScreen(targetModId, results));
         });
     }
-
 
     private static String determineCraftingAllocation(Item item, String itemId, Map<Object, Integer> setLevelConsensus) {
         int reqLevel = 1;
@@ -202,7 +196,6 @@ public class ScanModsCommand {
 
         return null;
     }
-
 
     @SuppressWarnings("unchecked")
     private static String determineMobXpAllocation(EntityType<?> entityType, String entityId) {
@@ -274,7 +267,7 @@ public class ScanModsCommand {
             return 1;
         }
 
-        if (item instanceof TieredItem tiered) {
+        if (item instanceof TieredItem) {
             int maxDurability = defaultStack.getMaxDamage();
             if (maxDurability >= 1500) return 30;
             if (maxDurability >= 1000) return 20;

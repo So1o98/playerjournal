@@ -1,15 +1,31 @@
 package com.player.journal.data;
 
+import com.mojang.serialization.Codec;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.common.util.INBTSerializable;
 
-public class JournalProgressionData implements INBTSerializable<CompoundTag> {
+import java.util.ArrayList;
+import java.util.List;
+
+public class JournalProgressionData {
+
+    // Codec used by Fabric's AttachmentRegistry to save/load via your existing NBT logic
+    public static final Codec<JournalProgressionData> CODEC = CompoundTag.CODEC.xmap(
+            tag -> {
+                JournalProgressionData data = new JournalProgressionData();
+                data.deserializeNBT(null, tag);
+                return data;
+            },
+            data -> data.serializeNBT(null)
+    );
 
     private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("playerjournal", "vitality_health_boost");
     private static final ResourceLocation SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("playerjournal", "agility_speed_boost");
@@ -49,8 +65,7 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
 
     private int tornPages = -1;
 
-    private java.util.List<String> researchedItems = new java.util.ArrayList<>();
-
+    private List<String> researchedItems = new ArrayList<>();
 
     private int getMaxLevel() {
         return MAX_LEVEL;
@@ -97,7 +112,6 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
     public float getFishingXP() { return fishingXP; }
     public int getAlchemyLevel() { return alchemyLevel; }
     public float getAlchemyXP() { return alchemyXP; }
-
 
     public void setVitalityLevel(int level, ServerPlayer player) {
         this.vitalityLevel = Math.min(getMaxLevel(), Math.max(1, level));
@@ -160,7 +174,7 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
         } catch (Exception e) {}
     }
 
-    public java.util.List<String> getResearchedItems() {
+    public List<String> getResearchedItems() {
         return this.researchedItems;
     }
 
@@ -573,7 +587,6 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
         }
     }
 
-    @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         initPagesIfNeeded();
 
@@ -601,16 +614,15 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
 
         tag.putInt("tornPages", this.tornPages);
 
-        net.minecraft.nbt.ListTag researchList = new net.minecraft.nbt.ListTag();
+        ListTag researchList = new ListTag();
         for (String id : this.researchedItems) {
-            researchList.add(net.minecraft.nbt.StringTag.valueOf(id));
+            researchList.add(StringTag.valueOf(id));
         }
         tag.put("researchedItems", researchList);
 
         return tag;
     }
 
-    @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
         this.vitalityLevel = tag.contains("vitalityLevel") ? Math.min(MAX_LEVEL, tag.getInt("vitalityLevel")) : 1;
         this.vitalityXP = tag.getFloat("vitalityXP");
@@ -661,12 +673,11 @@ public class JournalProgressionData implements INBTSerializable<CompoundTag> {
         this.tornPages = tag.contains("tornPages") ? tag.getInt("tornPages") : -1;
 
         this.researchedItems.clear();
-        if (tag.contains("researchedItems", net.minecraft.nbt.Tag.TAG_LIST)) {
-            net.minecraft.nbt.ListTag researchList = tag.getList("researchedItems", net.minecraft.nbt.Tag.TAG_STRING);
+        if (tag.contains("researchedItems", Tag.TAG_LIST)) {
+            ListTag researchList = tag.getList("researchedItems", Tag.TAG_STRING);
             for (int i = 0; i < researchList.size(); i++) {
                 this.researchedItems.add(researchList.getString(i));
             }
         }
-
     }
 }

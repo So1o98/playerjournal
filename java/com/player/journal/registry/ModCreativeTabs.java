@@ -1,18 +1,21 @@
 package com.player.journal.registry;
 
-import net.minecraft.core.registries.Registries;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.registries.DeferredRegister;
+
 import java.util.function.Supplier;
 
 public class ModCreativeTabs {
-    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
-            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, "playerjournal");
 
-    public static final Supplier<CreativeModeTab> JOURNAL_TAB = CREATIVE_MODE_TABS.register("journal_tab",
-            () -> CreativeModeTab.builder()
+    private static final CreativeModeTab JOURNAL_TAB_INSTANCE = Registry.register(
+            BuiltInRegistries.CREATIVE_MODE_TAB,
+            ResourceLocation.fromNamespaceAndPath("playerjournal", "journal_tab"),
+            FabricItemGroup.builder()
                     .title(Component.literal("Player Journal"))
                     .icon(() -> new ItemStack(ModItems.MINING_PAGE.get()))
                     .displayItems((parameters, output) -> {
@@ -20,5 +23,12 @@ public class ModCreativeTabs {
                         output.accept(ModItems.FARMING_PAGE.get());
                         output.accept(ModItems.SMITHING_PAGE.get());
                         output.accept(ModItems.ARCHERY_PAGE.get());
-                    }).build());
+                    }).build()
+    );
+
+    public static final Supplier<CreativeModeTab> JOURNAL_TAB = () -> JOURNAL_TAB_INSTANCE;
+
+    public static void register() {
+        // Triggers static initialization
+    }
 }

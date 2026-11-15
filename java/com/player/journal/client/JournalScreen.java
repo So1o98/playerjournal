@@ -1,24 +1,38 @@
 package com.player.journal.client;
 
+import com.mojang.math.Axis;
 import com.player.journal.api.PlayerJournalAPI;
 import com.player.journal.config.JournalConfig;
 import com.player.journal.network.ClientPayloadHandler;
+import com.player.journal.network.PartyInviteResponsePayload;
+import com.player.journal.network.RipPagesPayload;
+import com.player.journal.network.UnlockPagePayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.PageButton;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -28,6 +42,7 @@ import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,13 +67,10 @@ public class JournalScreen extends Screen {
 
     private static final ResourceLocation PADLOCK_TEXTURE = ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/padlock.png");
     private static final ResourceLocation OPEN_ANIMATION_TEXTURE = ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/opening_animation.png");
-
-    // --- NEW: Research Icon Sprite ---
     private static final ResourceLocation RESEARCH_ICON = ResourceLocation.fromNamespaceAndPath("playerjournal", "textures/gui/sprites/container/research_bench/progress_16.png");
 
     private boolean isOpening = true;
     private int openAnimationTick = 0;
-
 
     private final int TOTAL_OPEN_ANIMATION_TICKS = 10;
 
@@ -79,7 +91,7 @@ public class JournalScreen extends Screen {
 
     public static void savePins() {
         try {
-            File pinFile = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("playerjournal_pinned.txt").toFile();
+            File pinFile = FabricLoader.getInstance().getConfigDir().resolve("playerjournal_pinned.txt").toFile();
 
             if (pinFile.getParentFile() != null && !pinFile.getParentFile().exists()) {
                 pinFile.getParentFile().mkdirs();
@@ -103,7 +115,7 @@ public class JournalScreen extends Screen {
     public static void loadPins() {
         if (pinsLoaded) return;
         try {
-            File pinFile = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("playerjournal_pinned.txt").toFile();
+            File pinFile = FabricLoader.getInstance().getConfigDir().resolve("playerjournal_pinned.txt").toFile();
             if (!pinFile.exists()) return;
 
             try (BufferedReader reader = new BufferedReader(new FileReader(pinFile))) {
@@ -141,7 +153,7 @@ public class JournalScreen extends Screen {
         public int requiredLevel;
         public boolean isCrafting;
         public boolean isAnvil;
-        public boolean isResearch; // --- NEW: Research Flag ---
+        public boolean isResearch;
 
         public UnlockEntry(ItemStack stack, int requiredLevel, boolean isCrafting, boolean isAnvil, boolean isResearch) {
             this.stack = stack;
@@ -197,7 +209,6 @@ public class JournalScreen extends Screen {
         };
     }
 
-    // --- NEW: Helper method to safely check if an item is researched ---
     private static boolean isResearched(String itemId) {
         return ClientPayloadHandler.researchedItems != null && ClientPayloadHandler.researchedItems.contains(itemId.trim());
     }
@@ -237,7 +248,7 @@ public class JournalScreen extends Screen {
                         }
                     });
                 }
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
         });
 
         PlayerJournalAPI.getAllCustomInteractRestrictions().forEach((itemId, reqs) -> {
@@ -260,7 +271,7 @@ public class JournalScreen extends Screen {
                         }
                     });
                 }
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
         });
 
         PlayerJournalAPI.getAllCustomBlockRestrictions().forEach((blockId, reqs) -> {
@@ -283,14 +294,14 @@ public class JournalScreen extends Screen {
                         }
                     });
                 }
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
         });
 
-        Set<String> allRestrictions = new java.util.LinkedHashSet<>();
+        Set<String> allRestrictions = new LinkedHashSet<>();
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             allRestrictions.addAll((List<String>) JournalConfig.ARMOR_RESTRICTIONS.get());
             allRestrictions.addAll((List<String>) JournalConfig.POTION_RESTRICTIONS.get());
-            allRestrictions.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            allRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
             allRestrictions.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
             allRestrictions.addAll((List<String>) JournalConfig.GLIDERS_ITEMS.get());
             allRestrictions.addAll((List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get());
@@ -354,18 +365,18 @@ public class JournalScreen extends Screen {
                             if (defenseReq != -1) cachedDefenseUnlocks.add(new UnlockEntry(displayStack, defenseReq, false, false, isResearched(itemId)));
                             if (alchemyReq != -1) cachedAlchemyUnlocks.add(new UnlockEntry(displayStack, alchemyReq, false, false, isResearched(itemId)));
                         }
-                    } catch (Exception e) {}
+                    } catch (Exception ignored) {}
                 }
             }
         }
 
-        Set<String> agilityConfigStrings = new java.util.LinkedHashSet<>();
+        Set<String> agilityConfigStrings = new LinkedHashSet<>();
         agilityConfigStrings.addAll((List<String>) JournalConfig.AGILITY_ITEMS.get());
 
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             agilityConfigStrings.addAll((List<String>) JournalConfig.GLIDERS_ITEMS.get());
             agilityConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_AIRCRAFT_ITEMS.get());
-            agilityConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            agilityConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             agilityConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             agilityConfigStrings.addAll(ClientPayloadHandler.serverGlidersItems);
@@ -390,13 +401,13 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedAgilityUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> agilityMountStrings = new java.util.LinkedHashSet<>();
+        Set<String> agilityMountStrings = new LinkedHashSet<>();
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             agilityMountStrings.addAll((List<String>) JournalConfig.AGILITY_MOUNTS.get());
         } else {
@@ -421,13 +432,13 @@ public class JournalScreen extends Screen {
                             String eggId = entityId.trim() + "_spawn_egg";
                             Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(eggId));
                             if (item != Items.AIR) cachedAgilityUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(eggId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> farmingConfigStrings = new java.util.LinkedHashSet<>();
+        Set<String> farmingConfigStrings = new LinkedHashSet<>();
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_HOES.get());
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_AXES.get());
         farmingConfigStrings.addAll((List<String>) JournalConfig.FARMING_ITEMS.get());
@@ -438,7 +449,7 @@ public class JournalScreen extends Screen {
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             farmingConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
             farmingConfigStrings.addAll((List<String>) JournalConfig.SMALL_SHIPS_ITEMS.get());
-            farmingConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            farmingConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             farmingConfigStrings.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
             farmingConfigStrings.addAll(ClientPayloadHandler.serverSmallShipsItems);
@@ -462,7 +473,7 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedFarmingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
@@ -486,19 +497,19 @@ public class JournalScreen extends Screen {
                             String eggId = entityId.trim() + "_spawn_egg";
                             Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(eggId));
                             if (item != Items.AIR) cachedFarmingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(eggId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> miningToolStrings = new java.util.LinkedHashSet<>();
+        Set<String> miningToolStrings = new LinkedHashSet<>();
         miningToolStrings.addAll((List<String>) JournalConfig.MINING_TOOL_RESTRICTIONS.get());
         miningToolStrings.addAll((List<String>) JournalConfig.CUSTOM_MINING_TOOLS.get());
 
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             miningToolStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
-            miningToolStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            miningToolStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             miningToolStrings.addAll(ClientPayloadHandler.serverImmersiveMachineryItems);
             miningToolStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
@@ -524,14 +535,14 @@ public class JournalScreen extends Screen {
                             try {
                                 Item item = getRenderItem(cleanId);
                                 if (item != Items.AIR) cachedMiningUnlocks.add(new UnlockEntry(new ItemStack(item), miningReq, false, false, isResearched(cleanId)));
-                            } catch (Exception e) {}
+                            } catch (Exception ignored) {}
                         }
                     }
                 }
             }
         }
 
-        Set<String> miningBlockStrings = new java.util.LinkedHashSet<>();
+        Set<String> miningBlockStrings = new LinkedHashSet<>();
         miningBlockStrings.addAll(JournalConfig.getAllBlockRestrictions());
         miningBlockStrings.addAll(JournalConfig.getUtilityBlockRestrictions());
         miningBlockStrings.addAll((List<String>) JournalConfig.MINING_COAL.get());
@@ -544,12 +555,7 @@ public class JournalScreen extends Screen {
         miningBlockStrings.addAll((List<String>) JournalConfig.MINING_QUARTZ.get());
         miningBlockStrings.addAll((List<String>) JournalConfig.MINING_NETHERITE.get());
         miningBlockStrings.addAll((List<String>) JournalConfig.CUSTOM_MINING_BLOCKS.get());
-
-        if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
-            miningBlockStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
-        } else {
-            miningBlockStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
-        }
+        miningBlockStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
 
         Set<String> addedBlockIds = new HashSet<>();
         for (String restriction : miningBlockStrings) {
@@ -571,21 +577,16 @@ public class JournalScreen extends Screen {
                             try {
                                 Item item = getRenderItem(cleanId);
                                 if (item != Items.AIR) cachedMiningBlocks.add(new UnlockEntry(new ItemStack(item), miningReq, false, false, isResearched(cleanId)));
-                            } catch (Exception e) {}
+                            } catch (Exception ignored) {}
                         }
                     }
                 }
             }
         }
 
-        Set<String> smithingRestrictions = new java.util.LinkedHashSet<>();
+        Set<String> smithingRestrictions = new LinkedHashSet<>();
         smithingRestrictions.addAll(JournalConfig.getSmithingUtilities());
-
-        if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
-            smithingRestrictions.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
-        } else {
-            smithingRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
-        }
+        smithingRestrictions.addAll(ClientPayloadHandler.serverItemRestrictions);
 
         for (String restriction : smithingRestrictions) {
             String[] parts = restriction.split(";");
@@ -604,14 +605,13 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedSmithingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> craftingRestrictions = new java.util.LinkedHashSet<>();
-        craftingRestrictions.addAll(ClientPayloadHandler.serverCraftingRestrictions);
+        Set<String> craftingRestrictions = new LinkedHashSet<>(ClientPayloadHandler.serverCraftingRestrictions);
 
         for (String restriction : craftingRestrictions) {
             String[] parts = restriction.split(";");
@@ -630,13 +630,13 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedSmithingUnlocks.add(new UnlockEntry(new ItemStack(item), req, true, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> archeryConfigStrings = new java.util.LinkedHashSet<>();
+        Set<String> archeryConfigStrings = new LinkedHashSet<>();
         archeryConfigStrings.addAll((List<String>) JournalConfig.ARCHERY_BOWS.get());
         archeryConfigStrings.addAll((List<String>) JournalConfig.ARCHERY_CROSSBOWS.get());
         archeryConfigStrings.addAll((List<String>) JournalConfig.ARCHERY_TRIDENTS.get());
@@ -644,7 +644,7 @@ public class JournalScreen extends Screen {
 
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             archeryConfigStrings.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
-            archeryConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            archeryConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             archeryConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             archeryConfigStrings.addAll(ClientPayloadHandler.serverArchersArmors);
@@ -671,13 +671,13 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedArcheryUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> fishingConfigStrings = new java.util.LinkedHashSet<>();
+        Set<String> fishingConfigStrings = new LinkedHashSet<>();
         fishingConfigStrings.addAll((List<String>) JournalConfig.FISHING_RODS.get());
         fishingConfigStrings.addAll((List<String>) JournalConfig.FISHING_OCEAN_BLOCKS.get());
         fishingConfigStrings.addAll((List<String>) JournalConfig.FISHING_DIVING_GEAR.get());
@@ -687,7 +687,7 @@ public class JournalScreen extends Screen {
             fishingConfigStrings.addAll((List<String>) JournalConfig.LILIS_LUCKY_LURES_ITEMS.get());
             fishingConfigStrings.addAll((List<String>) JournalConfig.IMMERSIVE_MACHINERY_ITEMS.get());
             fishingConfigStrings.addAll((List<String>) JournalConfig.TIDE_ITEMS.get());
-            fishingConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            fishingConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             fishingConfigStrings.addAll(ClientPayloadHandler.serverJewelryRestrictions);
             fishingConfigStrings.addAll(ClientPayloadHandler.serverArchersArmors);
@@ -716,17 +716,17 @@ public class JournalScreen extends Screen {
                         try {
                             Item item = getRenderItem(itemId);
                             if (item != Items.AIR) cachedFishingUnlocks.add(new UnlockEntry(new ItemStack(item), req, false, false, isResearched(itemId)));
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> alchemyConfigStrings = new java.util.LinkedHashSet<>();
+        Set<String> alchemyConfigStrings = new LinkedHashSet<>();
         if (ClientPayloadHandler.serverArmorRestrictions.isEmpty()) {
             alchemyConfigStrings.addAll((List<String>) JournalConfig.ALCHEMY_UTILITIES.get());
             alchemyConfigStrings.addAll((List<String>) JournalConfig.ENCHANTMENT_RESTRICTIONS.get());
-            alchemyConfigStrings.addAll(com.player.journal.network.ClientPayloadHandler.serverItemRestrictions);
+            alchemyConfigStrings.addAll(ClientPayloadHandler.serverItemRestrictions);
         } else {
             alchemyConfigStrings.addAll(ClientPayloadHandler.serverAlchemyUtilities);
             alchemyConfigStrings.addAll(ClientPayloadHandler.serverEnchantmentRestrictions);
@@ -751,14 +751,14 @@ public class JournalScreen extends Screen {
                         try {
                             ItemStack displayStack = ItemStack.EMPTY;
 
-                            var level = net.minecraft.client.Minecraft.getInstance().level;
+                            var level = Minecraft.getInstance().level;
                             if (level != null) {
-                                var enchantReg = level.registryAccess().registry(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                                var enchantReg = level.registryAccess().registry(Registries.ENCHANTMENT);
                                 ResourceLocation loc = ResourceLocation.parse(itemId);
                                 if (enchantReg.isPresent() && enchantReg.get().containsKey(loc)) {
                                     var holder = enchantReg.get().getHolder(loc);
                                     if (holder.isPresent()) {
-                                        displayStack = net.minecraft.world.item.EnchantedBookItem.createForEnchantment(new net.minecraft.world.item.enchantment.EnchantmentInstance(holder.get(), 1));
+                                        displayStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder.get(), 1));
                                     }
                                 }
                             }
@@ -771,13 +771,13 @@ public class JournalScreen extends Screen {
                             if (!displayStack.isEmpty()) {
                                 cachedAlchemyUnlocks.add(new UnlockEntry(displayStack, req, false, false, isResearched(itemId)));
                             }
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
         }
 
-        Set<String> villagerConfig = new java.util.LinkedHashSet<>((List<String>) JournalConfig.VILLAGER_RESTRICTIONS.get());
+        Set<String> villagerConfig = new LinkedHashSet<>((List<String>) JournalConfig.VILLAGER_RESTRICTIONS.get());
         for (String restriction : villagerConfig) {
             String[] parts = restriction.split(";");
             if (parts.length >= 2) {
@@ -827,9 +827,7 @@ public class JournalScreen extends Screen {
     public void tick() {
         super.tick();
         if (isOpening) {
-            // Trigger the page rustle sound exactly once when the animation starts
             if (openAnimationTick == 0 && this.minecraft != null) {
-                // Pitch 0.9F gives it a slightly heavier, thicker book sound
                 this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 0.9F));
             }
 
@@ -885,7 +883,6 @@ public class JournalScreen extends Screen {
                 this.init(this.minecraft, this.width, this.height);
             }).bounds(pinX, pinY, 50, 20).build());
 
-
             if (this.currentPage == 7) {
                 int tabX = pinX;
                 int tabY = pinY + 23;
@@ -899,26 +896,23 @@ public class JournalScreen extends Screen {
             }
         }
 
-
         if (ClientPayloadHandler.pendingInvites != null && !ClientPayloadHandler.pendingInvites.isEmpty()) {
             int headSize = 32;
             int leftPageCenter = x + 114;
             int startX = leftPageCenter - (headSize / 2);
             int topY = y + 25;
 
-
             this.addRenderableWidget(Button.builder(Component.literal("§a✔"), button -> {
-                net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                        new com.player.journal.network.PartyInviteResponsePayload(true, ClientPayloadHandler.pendingInvites.get(0).name)
+                ClientPlayNetworking.send(
+                        new PartyInviteResponsePayload(true, ClientPayloadHandler.pendingInvites.get(0).name)
                 );
                 ClientPayloadHandler.pendingInvites.remove(0);
                 this.init(this.minecraft, this.width, this.height);
             }).bounds(startX - 25, topY + 6, 20, 20).build());
 
-
             this.addRenderableWidget(Button.builder(Component.literal("§c✖"), button -> {
-                net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                        new com.player.journal.network.PartyInviteResponsePayload(false, ClientPayloadHandler.pendingInvites.get(0).name)
+                ClientPlayNetworking.send(
+                        new PartyInviteResponsePayload(false, ClientPayloadHandler.pendingInvites.get(0).name)
                 );
                 ClientPayloadHandler.pendingInvites.remove(0);
                 this.init(this.minecraft, this.width, this.height);
@@ -1026,7 +1020,7 @@ public class JournalScreen extends Screen {
 
                 if (mouseX >= rightPageX && mouseX <= rightPageX + textWidth && mouseY >= createBtnY && mouseY <= createBtnY + 11) {
                     if (ClientPayloadHandler.tornPages >= 10) {
-                        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.player.journal.network.RipPagesPayload());
+                        ClientPlayNetworking.send(new RipPagesPayload());
                         if (this.minecraft != null) {
                             this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                         }
@@ -1039,7 +1033,6 @@ public class JournalScreen extends Screen {
                 }
             }
 
-
             if (this.currentPage >= 6 && this.currentPage <= 11 && !isPageUnlocked(this.currentPage)) {
                 int padSize = 48;
                 int padX = x + (imageWidth / 2) - (padSize / 2);
@@ -1048,7 +1041,7 @@ public class JournalScreen extends Screen {
                 if (mouseX >= padX && mouseX <= padX + padSize && mouseY >= padY && mouseY <= padY + padSize) {
                     int cost = 5;
                     if (ClientPayloadHandler.tornPages >= cost) {
-                        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.player.journal.network.UnlockPagePayload(this.currentPage));
+                        ClientPlayNetworking.send(new UnlockPagePayload(this.currentPage));
                         if (this.minecraft != null) {
                             this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                         }
@@ -1073,12 +1066,9 @@ public class JournalScreen extends Screen {
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         if (isOpening) {
-            // --- BLISTERING FAST BOOK ANIMATION ---
-            // The book finishes opening at tick 10, while the text
-            // reveal (in your render method) continues until tick 15.
             int currentFrame;
-            if (openAnimationTick < 2) currentFrame = 0;      // 2-tick pause closed
-            else if (openAnimationTick < 3) currentFrame = 1; // 1 frame per tick!
+            if (openAnimationTick < 2) currentFrame = 0;
+            else if (openAnimationTick < 3) currentFrame = 1;
             else if (openAnimationTick < 4) currentFrame = 2;
             else if (openAnimationTick < 5) currentFrame = 3;
             else if (openAnimationTick < 6) currentFrame = 4;
@@ -1086,7 +1076,7 @@ public class JournalScreen extends Screen {
             else if (openAnimationTick < 8) currentFrame = 6;
             else if (openAnimationTick < 9) currentFrame = 7;
             else if (openAnimationTick < 10) currentFrame = 8;
-            else currentFrame = 9; // Book fully open
+            else currentFrame = 9;
 
             int textureWidth = 1024;
             int totalTextureHeight = 4096;
@@ -1145,21 +1135,17 @@ public class JournalScreen extends Screen {
         boolean isUnlocked = isPageUnlocked(currentPage);
         ItemStack hoveredStack = null;
 
-// --- SNAPPY LINEAR CLIPPING MASK ---
         int clipStartX = x;
         if (isOpening) {
             if (openAnimationTick <= 2) {
-                clipStartX = x + 400; // Closed (Nothing shows)
+                clipStartX = x + 400;
             } else if (openAnimationTick <= 10) {
-                // Now perfectly matched to finish exactly when the book cover lands!
                 float progress = (openAnimationTick - 2) / 8.0f;
                 clipStartX = x + 400 - (int)(400 * progress);
             }
         }
 
         guiGraphics.flush();
-
-        guiGraphics.flush(); // Ensure background is completely drawn before clipping begins
 
         if (this.currentPage == 0) {
             if (isOpening) guiGraphics.enableScissor(clipStartX, 0, x + 400, this.height);
@@ -1203,7 +1189,7 @@ public class JournalScreen extends Screen {
             int listTop = attrTitleY + 16;
             int listBottom = y + 175;
 
-            net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+            LocalPlayer player = Minecraft.getInstance().player;
             if (player != null) {
                 if (ClientPayloadHandler.pendingInvites != null && !ClientPayloadHandler.pendingInvites.isEmpty()) {
                     ClientPayloadHandler.PartyMember inviter = ClientPayloadHandler.pendingInvites.get(0);
@@ -1213,7 +1199,7 @@ public class JournalScreen extends Screen {
                     String inviteText = "Invite From:";
                     guiGraphics.drawString(this.font, inviteText, leftPageCenter - (this.font.width(inviteText) / 2), topY - 12, 0xFF333333, false);
 
-                    net.minecraft.client.gui.components.PlayerFaceRenderer.draw(guiGraphics, inviter.skin, startX, topY, headSize);
+                    PlayerFaceRenderer.draw(guiGraphics, inviter.skin, startX, topY, headSize);
 
                     guiGraphics.pose().pushPose();
                     guiGraphics.pose().translate(startX + (headSize / 2f), topY + headSize + 4, 0);
@@ -1236,7 +1222,7 @@ public class JournalScreen extends Screen {
                         ClientPayloadHandler.PartyMember member = party.get(i);
                         int currentHeadX = startX + (i * (headSize + spacing));
 
-                        net.minecraft.client.gui.components.PlayerFaceRenderer.draw(guiGraphics, member.skin, currentHeadX, topY, headSize);
+                        PlayerFaceRenderer.draw(guiGraphics, member.skin, currentHeadX, topY, headSize);
 
                         guiGraphics.pose().pushPose();
                         float fontScale = partySize >= 3 ? 0.65f : 1.0f;
@@ -1251,14 +1237,14 @@ public class JournalScreen extends Screen {
 
                 guiGraphics.drawString(this.font, "Player Attributes:", leftPageX, attrTitleY, 0xFF333333, false);
 
-                guiGraphics.flush(); // Flush the static left page elements before we do list clipping
+                guiGraphics.flush();
                 if (isOpening) guiGraphics.disableScissor();
 
                 double maxHealth = player.getMaxHealth();
-                double speed = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-                double jump = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.JUMP_STRENGTH);
-                double attack = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
-                double armor = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR);
+                double speed = player.getAttributeValue(Attributes.MOVEMENT_SPEED);
+                double jump = player.getAttributeValue(Attributes.JUMP_STRENGTH);
+                double attack = player.getAttributeValue(Attributes.ATTACK_DAMAGE);
+                double armor = player.getAttributeValue(Attributes.ARMOR);
 
                 int speedPct = (int) Math.round((speed / 0.1) * 100);
                 int jumpPct = (int) Math.round((jump / 0.42) * 100);
@@ -1270,13 +1256,13 @@ public class JournalScreen extends Screen {
                 attrList.add("• Base Damage: " + String.format("%.1f", attack));
                 attrList.add("• Armor Rating: " + (int)armor);
 
-                if (net.neoforged.fml.ModList.get().isLoaded("puffish_attributes")) {
+                if (FabricLoader.getInstance().isModLoaded("puffish_attributes")) {
                     String[] puffishIds = {"melee_damage", "ranged_damage", "magic_damage", "healing", "resistance", "mining_speed", "sprinting_speed", "life_steal", "fortune", "experience"};
                     String[] puffishNames = {"Melee Dmg", "Ranged Dmg", "Magic Dmg", "Healing", "Resistance", "Mining Spd", "Sprint Spd", "Life Steal", "Fortune", "Exp Bonus"};
 
                     for (int i = 0; i < puffishIds.length; i++) {
                         try {
-                            net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("puffish_attributes", puffishIds[i]);
+                            ResourceLocation rl = ResourceLocation.fromNamespaceAndPath("puffish_attributes", puffishIds[i]);
                             var attrHolder = BuiltInRegistries.ATTRIBUTE.getHolder(rl);
                             if (attrHolder.isPresent() && player.getAttributes().hasAttribute(attrHolder.get())) {
                                 double val = player.getAttributeValue(attrHolder.get());
@@ -1284,7 +1270,7 @@ public class JournalScreen extends Screen {
                                     attrList.add("• " + puffishNames[i] + ": " + String.format("%.2f", val));
                                 }
                             }
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
 
@@ -1334,7 +1320,7 @@ public class JournalScreen extends Screen {
             guiGraphics.drawString(this.font, "Check the list on the", leftPageX, y + 117, 0xFF333333, false);
             guiGraphics.drawString(this.font, "right for requirements.", leftPageX, y + 128, 0xFF333333, false);
 
-            guiGraphics.flush(); // Flush static text before changing bounds
+            guiGraphics.flush();
             if (isOpening) guiGraphics.disableScissor();
 
             int listTop = y + 40;
@@ -1405,7 +1391,7 @@ public class JournalScreen extends Screen {
 
                     currentY += 12;
                 }
-                guiGraphics.flush(); // Flush the list before popping its mask
+                guiGraphics.flush();
                 guiGraphics.disableScissor();
             }
         }
@@ -1579,17 +1565,11 @@ public class JournalScreen extends Screen {
                         guiGraphics.pose().popPose();
                     }
 
-                    // --- NEW: Render Research Icon on Preview Page ---
-// --- Render Research Icon on Preview Page ---
                     if (entry.isResearch) {
                         guiGraphics.pose().pushPose();
-                        // 1. Move the pivot point to the bottom-right corner of the item icon
                         guiGraphics.pose().translate(nextX + 14, nextY + 14, 200);
-                        // 2. Scale it down slightly more
                         guiGraphics.pose().scale(0.35f, 0.35f, 1.0f);
-                        // 3. Rotate 45 degrees counter-clockwise (ZP is the Z-Axis)
-                        guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-45.0f));
-                        // 4. Draw offset by half its width (-15) and height (-8) to center the rotation
+                        guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(-45.0f));
                         guiGraphics.blit(RESEARCH_ICON, -15, -8, 0, 0, 30, 16, 30, 16);
                         guiGraphics.pose().popPose();
                     }
@@ -1604,7 +1584,7 @@ public class JournalScreen extends Screen {
                 guiGraphics.drawString(this.font, "All items unlocked!", leftPageX, y + 115, 0xFF006400, false);
             }
 
-            guiGraphics.flush(); // Flush left page previews before drawing scrolling bounds
+            guiGraphics.flush();
             if (isOpening) guiGraphics.disableScissor();
 
             int listTop = y + 40;
@@ -1680,16 +1660,11 @@ public class JournalScreen extends Screen {
                                 guiGraphics.pose().popPose();
                             }
 
-
                             if (entry.isResearch) {
                                 guiGraphics.pose().pushPose();
-                                // 1. Move the pivot point to the bottom-right corner of the item icon
                                 guiGraphics.pose().translate(currentX + 14, currentY + 14, 200);
-                                // 2. Scale it down slightly more
                                 guiGraphics.pose().scale(0.35f, 0.35f, 1.0f);
-                                // 3. Rotate 45 degrees counter-clockwise
-                                guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-45.0f));
-                                // 4. Draw offset by half its width (-15) and height (-8) to center the rotation
+                                guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(-45.0f));
                                 guiGraphics.blit(RESEARCH_ICON, -15, -8, 0, 0, 30, 16, 30, 16);
                                 guiGraphics.pose().popPose();
                             }
@@ -1708,9 +1683,6 @@ public class JournalScreen extends Screen {
             }
         }
 
-        // ==========================================
-        //         PADLOCK OVERLAY RENDERING
-        // ==========================================
         if (!isUnlocked) {
             int padSize = 48;
             int padX = x + (imageWidth / 2) - (padSize / 2);
@@ -1723,16 +1695,16 @@ public class JournalScreen extends Screen {
 
             guiGraphics.drawCenteredString(this.font, getLockedText(currentPage), x + (imageWidth / 2), padY + padSize + 5, 0xFFFFFFFF);
 
-            guiGraphics.flush(); // Flush padlock before popping
+            guiGraphics.flush();
             if (isOpening) guiGraphics.disableScissor();
 
             if (mouseX >= padX && mouseX <= padX + padSize && mouseY >= padY && mouseY <= padY + padSize && !isOpening) {
                 int cost = 8;
                 List<Component> tooltipLines = new ArrayList<>();
-                tooltipLines.add(Component.literal("Click to Unlock").withStyle(net.minecraft.ChatFormatting.GOLD));
-                tooltipLines.add(Component.literal("Cost: " + cost + " Pages").withStyle(net.minecraft.ChatFormatting.GRAY));
+                tooltipLines.add(Component.literal("Click to Unlock").withStyle(ChatFormatting.GOLD));
+                tooltipLines.add(Component.literal("Cost: " + cost + " Pages").withStyle(ChatFormatting.GRAY));
 
-                net.minecraft.ChatFormatting balanceColor = ClientPayloadHandler.tornPages >= cost ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED;
+                ChatFormatting balanceColor = ClientPayloadHandler.tornPages >= cost ? ChatFormatting.GREEN : ChatFormatting.RED;
                 tooltipLines.add(Component.literal("Your Balance: " + ClientPayloadHandler.tornPages).withStyle(balanceColor));
 
                 guiGraphics.renderComponentTooltip(this.font, tooltipLines, mouseX, mouseY);

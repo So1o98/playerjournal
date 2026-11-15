@@ -3,38 +3,30 @@ package com.player.journal.events;
 import com.player.journal.config.JournalConfig;
 import com.player.journal.data.JournalProgressionData;
 import com.player.journal.registry.ModAttachments;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 
-
-@EventBusSubscriber(modid = "playerjournal")
+@SuppressWarnings("UnstableApiUsage")
 public class AccessoriesIntegration {
 
-    @SubscribeEvent
-    public static void onModSetup(FMLCommonSetupEvent event) {
-        event.enqueueWork(() -> {
-
-            if (ModList.get().isLoaded("accessories")) {
-                AccessoriesCompat.register();
-            }
-            if (ModList.get().isLoaded("curios")) {
-                CuriosCompat.register();
-            }
-        });
+    public static void register() {
+        if (FabricLoader.getInstance().isModLoaded("accessories")) {
+            AccessoriesCompat.register();
+        }
     }
 
-
     public static String getFailedRequirement(ServerPlayer player, String itemIdentifier) {
-        List<String> allAccessoryRestrictions = new ArrayList<>();
-        allAccessoryRestrictions.addAll(JournalConfig.getAllItemRestrictions());
+        List<String> allAccessoryRestrictions = new ArrayList<>(JournalConfig.getAllItemRestrictions());
 
-        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        JournalProgressionData data = player.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
+
+        // Research bypass check
+        if (data.hasResearched(itemIdentifier)) {
+            return null;
+        }
 
         for (String restriction : allAccessoryRestrictions) {
             String[] parts = restriction.split(";");
@@ -59,20 +51,19 @@ public class AccessoriesIntegration {
 
                     String skill = skillReq[0].toLowerCase().trim();
                     int requiredLevel = Integer.parseInt(skillReq[1].trim());
-                    int playerLevel = 0;
-
-                    switch (skill) {
-                        case "vitality" -> playerLevel = data.getVitalityLevel();
-                        case "agility" -> playerLevel = data.getAgilityLevel();
-                        case "combat" -> playerLevel = data.getCombatLevel();
-                        case "defense" -> playerLevel = data.getDefenseLevel();
-                        case "mining" -> playerLevel = data.getMiningLevel();
-                        case "farming" -> playerLevel = data.getFarmingLevel();
-                        case "smithing" -> playerLevel = data.getSmithingLevel();
-                        case "fishing" -> playerLevel = data.getFishingLevel();
-                        case "archery" -> playerLevel = data.getArcheryLevel();
-                        case "alchemy" -> playerLevel = data.getAlchemyLevel();
-                    }
+                    int playerLevel = switch (skill) {
+                        case "vitality" -> data.getVitalityLevel();
+                        case "agility" -> data.getAgilityLevel();
+                        case "combat" -> data.getCombatLevel();
+                        case "defense" -> data.getDefenseLevel();
+                        case "mining" -> data.getMiningLevel();
+                        case "farming" -> data.getFarmingLevel();
+                        case "smithing" -> data.getSmithingLevel();
+                        case "fishing" -> data.getFishingLevel();
+                        case "archery" -> data.getArcheryLevel();
+                        case "alchemy" -> data.getAlchemyLevel();
+                        default -> 0;
+                    };
 
                     if (playerLevel < requiredLevel) {
                         String displaySkill = skill.substring(0, 1).toUpperCase() + skill.substring(1);

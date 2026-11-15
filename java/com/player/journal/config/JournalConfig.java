@@ -1,10 +1,174 @@
 package com.player.journal.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import net.fabricmc.loader.api.FabricLoader;
+
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class JournalConfig {
+
+
+    public static class ModConfigSpec {
+        private final List<ConfigValue<?>> entries = new ArrayList<>();
+
+        public void save() {
+            JournalConfig.save();
+        }
+
+        public static class ConfigValue<T> {
+            protected final List<String> path;
+            protected final T defaultValue;
+            protected T value;
+
+            public ConfigValue(List<String> path, T defaultValue) {
+                this.path = new ArrayList<>(path);
+                this.defaultValue = defaultValue;
+                this.value = defaultValue;
+            }
+
+            public T get() {
+                return value != null ? value : defaultValue;
+            }
+
+            public T getDefault() {
+                return defaultValue;
+            }
+
+            public void set(T value) {
+                this.value = value;
+            }
+
+            public void save() {
+                JournalConfig.save();
+            }
+
+            public List<String> getPath() {
+                return path;
+            }
+        }
+
+        public static class IntValue extends ConfigValue<Integer> {
+            private final int min;
+            private final int max;
+
+            public IntValue(List<String> path, int defaultValue, int min, int max) {
+                super(path, defaultValue);
+                this.min = min;
+                this.max = max;
+            }
+
+            @Override
+            public void set(Integer val) {
+                this.value = Math.max(min, Math.min(max, val));
+            }
+        }
+
+        public static class DoubleValue extends ConfigValue<Double> {
+            private final double min;
+            private final double max;
+
+            public DoubleValue(List<String> path, double defaultValue, double min, double max) {
+                super(path, defaultValue);
+                this.min = min;
+                this.max = max;
+            }
+
+            @Override
+            public void set(Double val) {
+                this.value = Math.max(min, Math.min(max, val));
+            }
+        }
+
+        public static class BooleanValue extends ConfigValue<Boolean> {
+            public BooleanValue(List<String> path, boolean defaultValue) {
+                super(path, defaultValue);
+            }
+        }
+
+        public static class Builder {
+            private final List<String> currentPath = new ArrayList<>();
+            private final List<ConfigValue<?>> builtEntries = new ArrayList<>();
+
+            public Builder push(String name) {
+                currentPath.add(name);
+                return this;
+            }
+
+            public Builder pop() {
+                if (!currentPath.isEmpty()) {
+                    currentPath.remove(currentPath.size() - 1);
+                }
+                return this;
+            }
+
+            public Builder comment(String... comments) {
+                return this;
+            }
+
+            private List<String> fullPath(String key) {
+                List<String> p = new ArrayList<>(currentPath);
+                p.add(key);
+                return p;
+            }
+
+            public IntValue defineInRange(String key, int defaultValue, int min, int max) {
+                IntValue v = new IntValue(fullPath(key), defaultValue, min, max);
+                builtEntries.add(v);
+                return v;
+            }
+
+            public DoubleValue defineInRange(String key, double defaultValue, double min, double max) {
+                DoubleValue v = new DoubleValue(fullPath(key), defaultValue, min, max);
+                builtEntries.add(v);
+                return v;
+            }
+
+            public BooleanValue define(String key, boolean defaultValue) {
+                BooleanValue v = new BooleanValue(fullPath(key), defaultValue);
+                builtEntries.add(v);
+                return v;
+            }
+
+            public <T> ConfigValue<T> define(String key, T defaultValue) {
+                ConfigValue<T> v = new ConfigValue<>(fullPath(key), defaultValue);
+                builtEntries.add(v);
+                return v;
+            }
+
+            public <T> ConfigValue<List<? extends T>> defineListAllowEmpty(List<String> keyPath, Supplier<List<? extends T>> defaultSupplier, Predicate<Object> validator) {
+                List<String> p = new ArrayList<>(currentPath);
+                p.addAll(keyPath);
+                List<? extends T> def = new ArrayList<>(defaultSupplier.get());
+                ConfigValue<List<? extends T>> v = new ConfigValue<>(p, def);
+                builtEntries.add(v);
+                return v;
+            }
+
+            public ModConfigSpec build() {
+                ModConfigSpec spec = new ModConfigSpec();
+                spec.entries.addAll(builtEntries);
+                return spec;
+            }
+        }
+    }
+
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("playerjournal.json");
+
     public static final ModConfigSpec SPEC;
 
     // --- GENERAL SETTINGS ---
@@ -140,18 +304,15 @@ public class JournalConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> IMMERSIVE_AIRCRAFT_ITEMS;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> SMALL_SHIPS_ITEMS;
 
-
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
-// ==========================================
+        // ==========================================
         //                GENERAL SETTINGS
         // ==========================================
-
         builder.push("General");
         LEVELS_PER_PAGE_REWARD = builder.comment("How many skill levels are required to be rewarded with 1 Torn Page? (e.g. 5 = rewarded at level 5, 10, 15...)").defineInRange("levelsPerPageReward", 5, 1, 100);
         STARTING_TORN_PAGES = builder.comment("How many Torn Pages should a player start with when they first join?").defineInRange("startingTornPages", 5, 0, 1000);
-
 
         builder.push("HUD_Overlay");
         HUD_SCALE = builder.comment("Scale of the pinned pages overlay (1.0 is normal, 0.75 is small, 1.5 is large)")
@@ -207,7 +368,6 @@ public class JournalConfig {
                 "minecraft:mangrove_chest_boat:6",
                 "minecraft:oak_chest_boat:6",
                 "minecraft:spruce_chest_boat:6"
-
         ), obj -> obj instanceof String);
         AGILITY_MOUNTS = builder.comment("Format: entity_id;skill:level").defineListAllowEmpty(List.of("agility_mounts"), () -> List.of(
                 "minecraft:horse;agility:12",
@@ -298,7 +458,6 @@ public class JournalConfig {
                 "minecraft:snow_golem;2"
         ), obj -> obj instanceof String);
 
-
         CUSTOM_MOB_XP_VALUES = builder.comment("Add custom or modded mob XP values here (Format: entity_id;xp_reward)")
                 .defineListAllowEmpty(List.of("custom_mob_xp_values"), () -> List.of(), obj -> obj instanceof String);
 
@@ -322,32 +481,26 @@ public class JournalConfig {
         DEFENSE_ARMOR_XP_PER_DAMAGE = builder.comment("XP gained per 1 point of damage mitigated by physical armor").defineInRange("defenseArmorXpPerDamage", 5, 0.0, 100.0);
 
         ARMOR_RESTRICTIONS = builder.defineListAllowEmpty(List.of("armor_restrictions"), () -> List.of(
-                //leather armor
                 "minecraft:leather_helmet;defense:1",
                 "minecraft:leather_chestplate;defense:1",
                 "minecraft:leather_leggings;defense:1",
                 "minecraft:leather_boots;defense:1",
-                //chainmail armor
                 "minecraft:chainmail_helmet;defense:5",
                 "minecraft:chainmail_chestplate;defense:5",
                 "minecraft:chainmail_leggings;defense:5",
                 "minecraft:chainmail_boots;defense:5",
-                //iron armor
                 "minecraft:iron_helmet;defense:15;combat:10",
                 "minecraft:iron_chestplate;defense:15;combat:10",
                 "minecraft:iron_leggings;defense:15;combat:10",
                 "minecraft:iron_boots;defense:15;combat:10",
-                //gold armor
                 "minecraft:golden_helmet;defense:10;combat:5",
                 "minecraft:golden_chestplate;defense:10;combat:5",
                 "minecraft:golden_leggings;defense:10;combat:5",
                 "minecraft:golden_boots;defense:10;combat:5",
-                //diamond armor
                 "minecraft:diamond_helmet;defense:20;combat:15",
                 "minecraft:diamond_chestplate;defense:20;combat:15",
                 "minecraft:diamond_leggings;defense:20;combat:15",
                 "minecraft:diamond_boots;defense:20;combat:15",
-                //netherite armor
                 "minecraft:netherite_helmet;defense:25;combat:20",
                 "minecraft:netherite_chestplate;defense:25;combat:20",
                 "minecraft:netherite_leggings;defense:25;combat:20",
@@ -440,9 +593,6 @@ public class JournalConfig {
                 "minecraft:melon_seeds;farming:4",
                 "minecraft:torchflower_seeds;farming:8",
                 "minecraft:beetroot_seeds;farming:3"
-
-
-
         ), obj -> obj instanceof String);
         FARMING_BREEDING = builder.comment("Format: entity_id;skill:level;xp_reward").defineListAllowEmpty(List.of("farming_breeding"), () -> List.of(
                 "minecraft:chicken;farming:5;5",
@@ -476,7 +626,6 @@ public class JournalConfig {
                 "minecraft:stonecutter;smithing:3"
         ), obj -> obj instanceof String);
 
-        // Vanilla Gear
         SMITHING_CRAFTING_IRON_TOOLS = builder.defineListAllowEmpty(List.of("smithing_crafting_iron_tools"), () -> List.of("minecraft:iron_sword,minecraft:iron_pickaxe,minecraft:iron_axe,minecraft:iron_shovel,minecraft:iron_hoe;smithing:7;15"), obj -> obj instanceof String);
         SMITHING_CRAFTING_IRON_ARMOR = builder.defineListAllowEmpty(List.of("smithing_crafting_iron_armor"), () -> List.of("minecraft:iron_helmet,minecraft:iron_chestplate,minecraft:iron_leggings,minecraft:iron_boots;smithing:11;20"), obj -> obj instanceof String);
         SMITHING_CRAFTING_GOLD_TOOLS = builder.defineListAllowEmpty(List.of("smithing_crafting_gold_tools"), () -> List.of("minecraft:golden_sword,minecraft:golden_pickaxe,minecraft:golden_axe,minecraft:golden_shovel,minecraft:golden_hoe;smithing:3;10"), obj -> obj instanceof String);
@@ -487,8 +636,6 @@ public class JournalConfig {
         SMITHING_CRAFTING_NETHERITE_ARMOR = builder.defineListAllowEmpty(List.of("smithing_crafting_netherite_armor"), () -> List.of("minecraft:netherite_helmet,minecraft:netherite_chestplate,minecraft:netherite_leggings,minecraft:netherite_boots;smithing:21;60"), obj -> obj instanceof String);
         SMITHING_CRAFTING_CUSTOM = builder.defineListAllowEmpty(List.of("smithing_crafting_custom"), () -> List.of(), obj -> obj instanceof String);
 
-
-        // --- IMMERSIVE CRAFTING RESTRICTIONS ---
         SMITHING_IMMERSIVE_AIRCRAFT = builder.comment("Immersive Aircraft Crafting Restrictions")
                 .defineListAllowEmpty(List.of("smithing_immersive_aircraft"), () -> List.of(
                         "immersive_aircraft:enhanced_propeller;smithing:10;25",
@@ -540,7 +687,6 @@ public class JournalConfig {
         FISHING_CUSTOM = builder.defineListAllowEmpty(List.of("fishing_custom_items"), () -> List.of(), obj -> obj instanceof String);
         builder.pop();
 
-
         // ==========================================
         //             Alchemy Tab
         // ==========================================
@@ -550,11 +696,9 @@ public class JournalConfig {
         ALCHEMY_BREW_XP = builder.comment("The amount of Alchemy XP awarded when pulling a completed potion from a Brewing Stand.").defineInRange("alchemyBrewXp", 25.0, 0.0, 10000.0);
         ALCHEMY_DRINK_XP = builder.comment("The amount of Alchemy XP awarded when drinking a valid (non-water/base) potion.").defineInRange("alchemyDrinkXp", 15.0, 0.0, 10000.0);
 
-        // --- NEW BOOK XP CONFIGS ---
         ALCHEMY_BOOK_XP = builder.comment("XP gained from shift right-clicking and consuming a standard Book").defineInRange("alchemyBookXp", 15.0, 0.0, 100000.0);
         ALCHEMY_ENCHANTED_BOOK_BASE_XP = builder.comment("Base XP gained from consuming an Enchanted Book").defineInRange("alchemyEnchantedBookBaseXp", 50.0, 0.0, 100000.0);
         ALCHEMY_ENCHANTED_BOOK_LEVEL_MULTIPLIER = builder.comment("Additional XP granted per stored enchantment level on a consumed Enchanted Book").defineInRange("alchemyEnchantedBookLevelMultiplier", 15.0, 0.0, 100000.0);
-        // ---------------------------
 
         ALCHEMY_UTILITIES = builder.comment("Blocks that require interaction (Brewing Stands, Enchanting Tables, etc)").defineListAllowEmpty(List.of("alchemy_utilities"), () -> List.of(
                 "minecraft:brewing_stand;alchemy:5",
@@ -575,7 +719,6 @@ public class JournalConfig {
         ), obj -> obj instanceof String);
 
         ENCHANTMENT_RESTRICTIONS = builder.comment("Format: enchantment_id;skill:level").defineListAllowEmpty(List.of("enchantment_restrictions"), () -> List.of(
-                //Armors
                 "minecraft:protection;alchemy:5",
                 "minecraft:fire_protection;alchemy:5",
                 "minecraft:feather_falling;alchemy:5",
@@ -586,31 +729,25 @@ public class JournalConfig {
                 "minecraft:thorns;alchemy:5",
                 "minecraft:depth_strider;alchemy:5",
                 "minecraft:frost_walker;alchemy:5",
-                //Weapons
                 "minecraft:sharpness;alchemy:6",
                 "minecraft:smite;alchemy:6",
                 "minecraft:bane_of_arthropods;alchemy:6",
                 "minecraft:knockback;alchemy:6",
                 "minecraft:fire_aspect;alchemy:6",
                 "minecraft:looting;alchemy:6",
-                //Tools
                 "minecraft:efficiency;alchemy:8",
                 "minecraft:silk_touch;alchemy:8",
                 "minecraft:fortune;alchemy:8",
-                //Bows
                 "minecraft:power;alchemy:10",
                 "minecraft:punch;alchemy:10",
                 "minecraft:flame;alchemy:10",
                 "minecraft:infinity;alchemy:10",
-                //Rods
                 "minecraft:luck_of_the_sea;alchemy:10",
                 "minecraft:lure;alchemy:10",
-                //Misc
                 "minecraft:unbreaking;alchemy:12",
                 "minecraft:mending;alchemy:12"
         ), obj -> obj instanceof String);
         builder.pop();
-
 
         // ==========================================
         //             RESTRICTIONS TAB
@@ -624,7 +761,6 @@ public class JournalConfig {
 
         CUSTOM_ITEM_RESTRICTIONS = builder.defineListAllowEmpty(List.of("custom_item_restrictions"), () -> List.of(), obj -> obj instanceof String);
 
-        // --- NEW TIDE DROPDOWN ---
         TIDE_ITEMS = builder.comment("Tide Item Restrictions")
                 .defineListAllowEmpty(List.of("tide_items"), () -> List.of(
                         "minecraft:fishing_rod;fishing:1",
@@ -638,7 +774,7 @@ public class JournalConfig {
                         "tide:dragonfin_boots;defense:24",
                         "tide:starlight_bow;archery:18"
                 ), obj -> obj instanceof String);
-        // --- NEW GLIDERS DROPDOWN ---
+
         GLIDERS_ITEMS = builder.comment("Gliders Item Restrictions")
                 .defineListAllowEmpty(List.of("gliders_items"), () -> List.of(
                         "vc_gliders:paraglider_wood;agility:5",
@@ -647,7 +783,7 @@ public class JournalConfig {
                         "vc_gliders:paraglider_diamond;agility:13",
                         "vc_gliders:paraglider_netherite;agility:16"
                 ), obj -> obj instanceof String);
-        // --- NEW LILI'S LUCKY LURES DROPDOWN ---
+
         LILIS_LUCKY_LURES_ITEMS = builder.comment("Lili's Lucky Lures Item Restrictions")
                 .defineListAllowEmpty(List.of("lilis_lucky_lures_items"), () -> List.of(
                         "lilis_lucky_lures:bamboo_fishing_rod;fishing:2",
@@ -659,7 +795,7 @@ public class JournalConfig {
                         "lilis_lucky_lures:fish_trophy_frame;fishing:11",
                         "lilis_lucky_lures:anglers_hat;fishing:13"
                 ), obj -> obj instanceof String);
-        // --- NEW IMMERSIVE MODS DROPDOWNS ---
+
         IMMERSIVE_MACHINERY_ITEMS = builder.comment("Immersive Machinery Item Restrictions")
                 .defineListAllowEmpty(List.of("immersive_machinery_items"), () -> List.of(
                         "immersive_machinery:tunnel_digger;mining:18",
@@ -678,7 +814,7 @@ public class JournalConfig {
                         "immersive_aircraft:warship;agility:28;combat:30",
                         "immersive_aircraft:bamboo_hopper;agility:16"
                 ), obj -> obj instanceof String);
-        // --- NEW SMALL SHIPS DROPDOWN ---
+
         SMALL_SHIPS_ITEMS = builder.comment("Small Ships Item Restrictions")
                 .defineListAllowEmpty(List.of("small_ships_items"), () -> List.of(
                         "smallships:oak_cog;agility:1",
@@ -737,6 +873,98 @@ public class JournalConfig {
 
         builder.pop();
         SPEC = builder.build();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static void load() {
+        if (!Files.exists(CONFIG_PATH)) {
+            save();
+            return;
+        }
+        try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
+            JsonObject root = GSON.fromJson(reader, JsonObject.class);
+            if (root == null) return;
+
+            for (ModConfigSpec.ConfigValue<?> entry : SPEC.entries) {
+                JsonElement el = getElementAtPath(root, entry.getPath());
+                if (el == null || el.isJsonNull()) continue;
+
+                if (entry instanceof ModConfigSpec.IntValue intVal && el.isJsonPrimitive()) {
+                    intVal.set(el.getAsInt());
+                } else if (entry instanceof ModConfigSpec.DoubleValue doubleVal && el.isJsonPrimitive()) {
+                    doubleVal.set(el.getAsDouble());
+                } else if (entry instanceof ModConfigSpec.BooleanValue boolVal && el.isJsonPrimitive()) {
+                    boolVal.set(el.getAsBoolean());
+                } else if (entry.getDefault() instanceof String && el.isJsonPrimitive()) {
+                    ((ModConfigSpec.ConfigValue<String>) entry).set(el.getAsString());
+                } else if (entry.getDefault() instanceof List<?> && el.isJsonArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonElement item : el.getAsJsonArray()) {
+                        list.add(item.getAsString());
+                    }
+                    ((ModConfigSpec.ConfigValue<List<? extends String>>) entry).set(list);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[PlayerJournal] Failed to load playerjournal.json, using defaults:");
+            e.printStackTrace();
+        }
+        save();
+    }
+
+    public static void save() {
+        try {
+            JsonObject root = new JsonObject();
+            for (ModConfigSpec.ConfigValue<?> entry : SPEC.entries) {
+                setElementAtPath(root, entry.getPath(), entry.get());
+            }
+            Files.createDirectories(CONFIG_PATH.getParent());
+            try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
+                GSON.toJson(root, writer);
+            }
+        } catch (Exception e) {
+            System.err.println("[PlayerJournal] Failed to save playerjournal.json:");
+            e.printStackTrace();
+        }
+    }
+
+    private static JsonElement getElementAtPath(JsonObject root, List<String> path) {
+        JsonObject current = root;
+        for (int i = 0; i < path.size() - 1; i++) {
+            String p = path.get(i);
+            if (!current.has(p) || !current.get(p).isJsonObject()) {
+                return null;
+            }
+            current = current.getAsJsonObject(p);
+        }
+        return current.get(path.get(path.size() - 1));
+    }
+
+    private static void setElementAtPath(JsonObject root, List<String> path, Object value) {
+        JsonObject current = root;
+        for (int i = 0; i < path.size() - 1; i++) {
+            String p = path.get(i);
+            if (!current.has(p) || !current.get(p).isJsonObject()) {
+                current.add(p, new JsonObject());
+            }
+            current = current.getAsJsonObject(p);
+        }
+        String key = path.get(path.size() - 1);
+        if (value instanceof Integer i) {
+            current.addProperty(key, i);
+        } else if (value instanceof Double d) {
+            current.addProperty(key, d);
+        } else if (value instanceof Boolean b) {
+            current.addProperty(key, b);
+        } else if (value instanceof String s) {
+            current.addProperty(key, s);
+        } else if (value instanceof List<?> list) {
+            JsonArray arr = new JsonArray();
+            for (Object o : list) {
+                arr.add(String.valueOf(o));
+            }
+            current.add(key, arr);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -808,7 +1036,7 @@ public class JournalConfig {
         combined.addAll((List<String>) CUSTOM_MINING_BLOCKS.get());
         combined.addAll((List<String>) MINING_UTILITIES.get());
         combined.addAll((List<String>) FARMING_UTILITIES.get());
-        combined.addAll((List<String>) ALCHEMY_UTILITIES.get()); // NEW
+        combined.addAll((List<String>) ALCHEMY_UTILITIES.get());
         combined.addAll((List<String>) FARMING_CROPS.get());
         combined.addAll((List<String>) FISHING_OCEAN_BLOCKS.get());
         combined.addAll(getSmithingUtilities());
@@ -820,7 +1048,7 @@ public class JournalConfig {
         List<String> combined = new ArrayList<>();
         combined.addAll((List<String>) MINING_UTILITIES.get());
         combined.addAll((List<String>) FARMING_UTILITIES.get());
-        combined.addAll((List<String>) ALCHEMY_UTILITIES.get()); // NEW
+        combined.addAll((List<String>) ALCHEMY_UTILITIES.get());
         combined.addAll(getSmithingUtilities());
         return combined;
     }

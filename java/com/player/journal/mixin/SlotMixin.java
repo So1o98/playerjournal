@@ -19,8 +19,7 @@ public abstract class SlotMixin {
         Slot slot = (Slot) (Object) this;
 
         if (slot.container instanceof Inventory playerInventory) {
-            int index = slot.getSlotIndex();
-
+            int index = slot.getContainerSlot();
 
             if (index >= 36 && index <= 40) {
                 Player player = playerInventory.player;

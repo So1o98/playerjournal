@@ -3,6 +3,8 @@ package com.player.journal.item;
 import com.player.journal.data.JournalProgressionData;
 import com.player.journal.network.SyncJournalDataPayload;
 import com.player.journal.registry.ModAttachments;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -18,14 +20,14 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.item.TooltipFlag;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.List;
 
+@SuppressWarnings("UnstableApiUsage")
 public class ResearchBookItem extends Item {
 
     public ResearchBookItem(Properties properties) {
@@ -38,12 +40,12 @@ public class ResearchBookItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
         CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         if (customData.contains("ResearchedItemID")) {
             String targetId = customData.copyTag().getString("ResearchedItemID");
-            tooltipComponents.add(Component.literal("Unlocks: " + targetId).withStyle(net.minecraft.ChatFormatting.GRAY));
-            tooltipComponents.add(Component.literal("Hold Right-Click to read and unlock.").withStyle(net.minecraft.ChatFormatting.YELLOW));
+            tooltipComponents.add(Component.literal("Unlocks: " + targetId).withStyle(ChatFormatting.GRAY));
+            tooltipComponents.add(Component.literal("Hold Right-Click to read and unlock.").withStyle(ChatFormatting.YELLOW));
         }
     }
 
@@ -69,12 +71,12 @@ public class ResearchBookItem extends Item {
 
             if (customData.contains("ResearchedItemID")) {
                 String targetId = customData.copyTag().getString("ResearchedItemID");
-                JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA.get());
+                JournalProgressionData data = player.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
 
                 if (!data.hasResearched(targetId)) {
                     data.addResearchedItem(targetId);
+                    player.setAttached(ModAttachments.JOURNAL_DATA_TYPE, data);
 
-                    // --- NEW: Dynamic Messaging Logic ---
                     Item targetItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(targetId));
                     String itemName = targetItem.getDescription().getString();
                     boolean isBlock = targetItem instanceof BlockItem;
@@ -83,8 +85,7 @@ public class ResearchBookItem extends Item {
                             "§a" + itemName + " Researched. You can now mine this block!" :
                             "§a" + itemName + " Researched. You can now use this item!";
 
-                    player.displayClientMessage(Component.literal(messageText).withStyle(net.minecraft.ChatFormatting.BOLD), true);
-                    // ------------------------------------
+                    player.displayClientMessage(Component.literal(messageText).withStyle(ChatFormatting.BOLD), true);
 
                     level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
 
@@ -92,7 +93,7 @@ public class ResearchBookItem extends Item {
                         stack.shrink(1);
                     }
 
-                    PacketDistributor.sendToPlayer(player, new SyncJournalDataPayload(
+                    ServerPlayNetworking.send(player, new SyncJournalDataPayload(
                             data.getVitalityLevel(), data.getVitalityXP(),
                             data.getCombatLevel(), data.getCombatXP(),
                             data.getDefenseLevel(), data.getDefenseXP(),

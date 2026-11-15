@@ -2,31 +2,28 @@ package com.player.journal.client.events;
 
 import com.player.journal.client.JournalScreen;
 import com.player.journal.config.JournalConfig;
+import com.player.journal.mixin.AbstractContainerScreenAccessor;
 import com.player.journal.network.ClientPayloadHandler;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@EventBusSubscriber(modid = "playerjournal", value = Dist.CLIENT)
 public class ClientEvents {
-
 
     private static final Map<Integer, Float> lastKnownXP = new HashMap<>();
     private static final Map<Integer, Long> lastUpdateTimeMap = new HashMap<>();
@@ -35,27 +32,28 @@ public class ClientEvents {
     private static final long DISPLAY_DURATION_MS = 5000;
     private static final long FADE_DURATION_MS = 1500;
 
-    @SubscribeEvent
-    public static void onInventoryOpen(ScreenEvent.Init.Post event) {
-        if (event.getScreen() instanceof AbstractContainerScreen<?> screen) {
+    public static void register() {
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+            if (screen instanceof AbstractContainerScreen<?> containerScreen) {
+                String className = containerScreen.getClass().getName().toLowerCase();
 
-            String className = screen.getClass().getName().toLowerCase();
-
-            if (screen instanceof InventoryScreen || className.contains("curios") || className.contains("accessor")) {
-
-                JournalButton journalButton = new JournalButton(screen, button -> {
-                    if (Minecraft.getInstance().player != null) {
-                        Minecraft.getInstance().setScreen(new com.player.journal.client.JournalScreen());
-                    }
-                });
-
-                event.addListener(journalButton);
+                if (containerScreen instanceof InventoryScreen || className.contains("curios") || className.contains("accessor")) {
+                    JournalButton journalButton = new JournalButton(containerScreen, button -> {
+                        if (Minecraft.getInstance().player != null) {
+                            Minecraft.getInstance().setScreen(new JournalScreen());
+                        }
+                    });
+                    Screens.getButtons(containerScreen).add(journalButton);
+                }
             }
-        }
+        });
+
+        HudRenderCallback.EVENT.register((guiGraphics, deltaTracker) -> {
+            onRenderHUD(guiGraphics);
+        });
     }
 
-    @SubscribeEvent
-    public static void onRenderHUD(RenderGuiEvent.Post event) {
+    public static void onRenderHUD(GuiGraphics graphics) {
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.player == null || mc.options.hideGui) return;
@@ -63,36 +61,27 @@ public class ClientEvents {
         JournalScreen.rebuildUnlocksIfNeeded();
         long currentTime = System.currentTimeMillis();
 
-
         displayOrder.removeIf(page -> !JournalScreen.PINNED_PAGES.contains(page));
         lastKnownXP.keySet().removeIf(page -> !JournalScreen.PINNED_PAGES.contains(page));
         lastUpdateTimeMap.keySet().removeIf(page -> !JournalScreen.PINNED_PAGES.contains(page));
 
-
         for (Integer page : JournalScreen.PINNED_PAGES) {
             float currentXP = getCurrentXP(page);
-
 
             if (!lastKnownXP.containsKey(page) || lastKnownXP.get(page) != currentXP) {
                 lastKnownXP.put(page, currentXP);
 
-
                 displayOrder.remove(Integer.valueOf(page));
                 displayOrder.add(page);
-
 
                 lastUpdateTimeMap.put(page, currentTime);
             }
         }
 
-
         displayOrder.removeIf(page -> currentTime - lastUpdateTimeMap.getOrDefault(page, 0L) > DISPLAY_DURATION_MS + FADE_DURATION_MS);
-
 
         if (displayOrder.isEmpty()) return;
 
-
-        GuiGraphics graphics = event.getGuiGraphics();
         Font font = mc.font;
 
         float scale = JournalConfig.HUD_SCALE.get().floatValue();
@@ -121,12 +110,10 @@ public class ClientEvents {
             currentY = scaledOffsetY;
         }
 
-
         for (Integer page : displayOrder) {
             String text = getPinnedSkillText(page);
 
             if (text != null) {
-
                 long timeSinceUpdate = currentTime - lastUpdateTimeMap.getOrDefault(page, 0L);
                 float alpha = 1.0f;
 
@@ -137,10 +124,8 @@ public class ClientEvents {
                 alpha = Math.max(0.0f, Math.min(1.0f, alpha));
                 int alphaBits = (int) (alpha * 255);
 
-
                 if (alphaBits > 5) {
                     int textColor = (alphaBits << 24) | 0xFFFFFF;
-
                     int textWidth = font.width(text);
                     int x;
 
@@ -150,10 +135,8 @@ public class ClientEvents {
                         x = scaledOffsetX;
                     }
 
-
                     graphics.drawString(font, text, x, currentY, textColor, true);
                 }
-
 
                 currentY += lineSpacing;
             }
@@ -227,8 +210,9 @@ public class ClientEvents {
 
         @Override
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            this.setX(this.screen.getGuiLeft() + 61);
-            this.setY(this.screen.getGuiTop() + 64);
+            AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) this.screen;
+            this.setX(accessor.journal$getLeftPos() + 61);
+            this.setY(accessor.journal$getTopPos() + 64);
 
             guiGraphics.pose().pushPose();
             guiGraphics.pose().translate(this.getX(), this.getY(), 0);
@@ -238,10 +222,5 @@ public class ClientEvents {
 
             guiGraphics.pose().popPose();
         }
-    }
-
-    @SubscribeEvent
-    public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
-        event.register(com.player.journal.registry.ModMenuTypes.KNOWLEDGE_TABLE_MENU.get(), com.player.journal.client.KnowledgeTableScreen::new);
     }
 }

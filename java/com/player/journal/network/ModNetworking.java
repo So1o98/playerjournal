@@ -1,66 +1,36 @@
 package com.player.journal.network;
 
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
-@SuppressWarnings("removal")
-@EventBusSubscriber(modid = "playerjournal", bus = EventBusSubscriber.Bus.MOD)
 public class ModNetworking {
 
-    @SubscribeEvent
-    public static void register(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar("playerjournal");
+    public static void registerCommon() {
 
-        registrar.playToClient(
-                SyncJournalDataPayload.TYPE,
-                SyncJournalDataPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handleData(payload, context)
-        );
-
-        registrar.playToClient(
-                SyncJournalConfigPayload.TYPE,
-                SyncJournalConfigPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handleConfigData(payload, context)
-        );
-
-        registrar.playToClient(
-                InspectJournalPayload.TYPE,
-                InspectJournalPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handleInspectJournal(payload, context)
-        );
+        PayloadTypeRegistry.playS2C().register(SyncJournalDataPayload.TYPE, SyncJournalDataPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(SyncJournalConfigPayload.TYPE, SyncJournalConfigPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(InspectJournalPayload.TYPE, InspectJournalPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(SyncPartyPayload.TYPE, SyncPartyPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ReceivePartyInvitePayload.TYPE, ReceivePartyInvitePayload.STREAM_CODEC);
 
 
-        registrar.playToClient(
-                SyncPartyPayload.TYPE,
-                SyncPartyPayload.CODEC,
-                (payload, context) -> ClientPayloadHandler.handlePartySync(payload, context)
-        );
+        PayloadTypeRegistry.playC2S().register(UnlockPagePayload.TYPE, UnlockPagePayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(RipPagesPayload.TYPE, RipPagesPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PartyInviteResponsePayload.TYPE, PartyInviteResponsePayload.STREAM_CODEC);
 
-        registrar.playToServer(
-                UnlockPagePayload.TYPE,
-                UnlockPagePayload.STREAM_CODEC,
-                (payload, context) -> ServerPayloadHandler.handleUnlockPage(payload, context)
-        );
 
-        registrar.playToServer(
-                com.player.journal.network.RipPagesPayload.TYPE,
-                com.player.journal.network.RipPagesPayload.CODEC,
-                com.player.journal.network.ServerPayloadHandler::handleRipPages
-        );
-
-        registrar.playToServer(
-                PartyInviteResponsePayload.TYPE,
-                PartyInviteResponsePayload.STREAM_CODEC,
-                PartyInviteResponsePayload::handlePartyInviteResponse
-        );
-        registrar.playToClient(
-                ReceivePartyInvitePayload.TYPE,
-                ReceivePartyInvitePayload.STREAM_CODEC,
-                ClientPayloadHandler::handleReceiveInvite
-        );
-
+        ServerPlayNetworking.registerGlobalReceiver(UnlockPagePayload.TYPE, ServerPayloadHandler::handleUnlockPage);
+        ServerPlayNetworking.registerGlobalReceiver(RipPagesPayload.TYPE, ServerPayloadHandler::handleRipPages);
+        ServerPlayNetworking.registerGlobalReceiver(PartyInviteResponsePayload.TYPE, PartyInviteResponsePayload::handlePartyInviteResponse);
     }
 
+    public static void registerClient() {
+
+        ClientPlayNetworking.registerGlobalReceiver(SyncJournalDataPayload.TYPE, ClientPayloadHandler::handleData);
+        ClientPlayNetworking.registerGlobalReceiver(SyncJournalConfigPayload.TYPE, ClientPayloadHandler::handleConfigData);
+        ClientPlayNetworking.registerGlobalReceiver(InspectJournalPayload.TYPE, ClientPayloadHandler::handleInspectJournal);
+        ClientPlayNetworking.registerGlobalReceiver(SyncPartyPayload.TYPE, ClientPayloadHandler::handlePartySync);
+        ClientPlayNetworking.registerGlobalReceiver(ReceivePartyInvitePayload.TYPE, ClientPayloadHandler::handleReceiveInvite);
+    }
 }

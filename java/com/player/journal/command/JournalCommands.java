@@ -4,31 +4,30 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.player.journal.data.JournalProgressionData;
-import com.player.journal.registry.ModAttachments;
 import com.player.journal.network.SyncJournalDataPayload;
+import com.player.journal.registry.ModAttachments;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.List;
 
-@EventBusSubscriber(modid = "playerjournal")
+@SuppressWarnings("UnstableApiUsage")
 public class JournalCommands {
 
-    @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+    public static void register() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            registerCommands(dispatcher);
+        });
+    }
 
-
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         PartyCommand.register(dispatcher);
         ScanModsCommand.register(dispatcher);
-
 
         dispatcher.register(Commands.literal("playerjournal")
                 .requires(source -> source.hasPermission(3))
@@ -36,7 +35,6 @@ public class JournalCommands {
                         .then(Commands.argument("target", EntityArgument.player())
                                 .then(Commands.argument("skill", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-
                                             List<String> skills = List.of(
                                                     "vitality", "agility", "combat", "defense",
                                                     "farming", "mining", "smithing", "archery",
@@ -64,7 +62,7 @@ public class JournalCommands {
     }
 
     private static int executeSet(CommandSourceStack source, ServerPlayer target, String skill, int value) {
-        JournalProgressionData data = target.getData(ModAttachments.JOURNAL_DATA);
+        JournalProgressionData data = target.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
         boolean success = true;
 
         switch (skill.toLowerCase()) {
@@ -86,7 +84,9 @@ public class JournalCommands {
         }
 
         if (success) {
-            PacketDistributor.sendToPlayer(target, new SyncJournalDataPayload(
+            target.setAttached(ModAttachments.JOURNAL_DATA_TYPE, data);
+
+            ServerPlayNetworking.send(target, new SyncJournalDataPayload(
                     data.getVitalityLevel(), data.getVitalityXP(),
                     data.getCombatLevel(), data.getCombatXP(),
                     data.getDefenseLevel(), data.getDefenseXP(),

@@ -1,10 +1,11 @@
 package com.player.journal.party;
 
+import com.player.journal.network.ReceivePartyInvitePayload;
 import com.player.journal.network.SyncPartyPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.*;
 
@@ -39,8 +40,7 @@ public class PartyManager {
         pendingInvites.put(targetId, inviterId);
         inviter.displayClientMessage(Component.literal("§aInvited " + target.getName().getString() + " to the party!"), false);
         target.displayClientMessage(Component.literal("§e" + inviter.getName().getString() + " has invited you to their party! Type §b/party accept§e to join."), false);
-        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(target, new com.player.journal.network.ReceivePartyInvitePayload(inviter.getName().getString()));
-
+        ServerPlayNetworking.send(target, new ReceivePartyInvitePayload(inviter.getName().getString()));
     }
 
     public static void acceptInvite(ServerPlayer target) {
@@ -77,9 +77,7 @@ public class PartyManager {
             return;
         }
 
-
         UUID inviterId = pendingInvites.remove(targetId);
-
 
         if (target.getServer() != null) {
             ServerPlayer inviter = target.getServer().getPlayerList().getPlayer(inviterId);
@@ -136,7 +134,6 @@ public class PartyManager {
         }
     }
 
-
     public static void onPlayerLoggedIn(ServerPlayer player) {
         UUID playerId = player.getUUID();
 
@@ -174,7 +171,6 @@ public class PartyManager {
         for (UUID memberId : parties.get(partyId)) {
             ServerPlayer member = server.getPlayerList().getPlayer(memberId);
             if (member != null) {
-                // --- NEW: Send HP on full party sync ---
                 roster.add(new SyncPartyPayload.PartyMemberData(member.getUUID(), member.getName().getString(), true, member.getHealth()));
             }
         }
@@ -183,14 +179,15 @@ public class PartyManager {
         for (UUID memberId : parties.get(partyId)) {
             ServerPlayer member = server.getPlayerList().getPlayer(memberId);
             if (member != null) {
-                PacketDistributor.sendToPlayer(member, payload);
+                ServerPlayNetworking.send(member, payload);
             }
         }
     }
 
     private static void clearClientParty(ServerPlayer player) {
-        PacketDistributor.sendToPlayer(player, new SyncPartyPayload(new ArrayList<>()));
+        ServerPlayNetworking.send(player, new SyncPartyPayload(new ArrayList<>()));
     }
+
     public static void syncPartyForPlayer(ServerPlayer receiver) {
         UUID partyId = playerToParty.get(receiver.getUUID());
         if (partyId == null || !parties.containsKey(partyId)) return;
@@ -202,17 +199,15 @@ public class PartyManager {
                 boolean inRange = true;
 
                 if (!receiver.getUUID().equals(memberId)) {
-
                     if (receiver.level() != member.level() || receiver.distanceToSqr(member) > 10000) {
                         inRange = false;
                     }
                 }
 
-                // --- NEW: Send HP on periodic player sync ---
                 roster.add(new SyncPartyPayload.PartyMemberData(member.getUUID(), member.getName().getString(), inRange, member.getHealth()));
             }
         }
 
-        PacketDistributor.sendToPlayer(receiver, new SyncPartyPayload(roster));
+        ServerPlayNetworking.send(receiver, new SyncPartyPayload(roster));
     }
 }

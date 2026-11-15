@@ -23,12 +23,12 @@ public class BlockRestrictionProvider implements IBlockComponentProvider {
     public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
         String blockId = BuiltInRegistries.BLOCK.getKey(accessor.getBlock()).toString();
 
-        // --- NEW: Check if the block has been researched by the player ---
+
         boolean isResearched = false;
         if (ClientPayloadHandler.researchedItems != null && ClientPayloadHandler.researchedItems.contains(blockId)) {
             isResearched = true;
         }
-        // -----------------------------------------------------------------
+
 
         Map<String, Integer> apiReqs = PlayerJournalAPI.getCustomBlockUsage(blockId);
 

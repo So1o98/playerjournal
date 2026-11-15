@@ -1,11 +1,16 @@
 package com.player.journal.network;
 
+import com.mojang.authlib.GameProfile;
+import com.player.journal.client.ClientSetup;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class ClientPayloadHandler {
 
@@ -76,7 +81,7 @@ public class ClientPayloadHandler {
     public static List<String> serverEnchantmentRestrictions = new ArrayList<>();
     public static List<String> serverAgilityMounts = new ArrayList<>();
     public static List<PartyMember> pendingInvites = new ArrayList<>();
-    public static java.util.List<String> serverCraftingRestrictions = new java.util.ArrayList<>();
+    public static List<String> serverCraftingRestrictions = new ArrayList<>();
 
     public static int serverVitalityBase = -1; public static double serverVitalityMult = -1;
     public static int serverAgilityBase = -1; public static double serverAgilityMult = -1;
@@ -89,8 +94,8 @@ public class ClientPayloadHandler {
     public static int serverFishingBase = -1; public static double serverFishingMult = -1;
     public static int serverAlchemyBase = -1; public static double serverAlchemyMult = -1;
 
-    public static void handleData(SyncJournalDataPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
+    public static void handleData(SyncJournalDataPayload payload, ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
             vitalityLevel = payload.vitalityLevel();
             vitalityXP = payload.vitalityXP();
 
@@ -134,8 +139,8 @@ public class ClientPayloadHandler {
         });
     }
 
-    public static void handleConfigData(SyncJournalConfigPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
+    public static void handleConfigData(SyncJournalConfigPayload payload, ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
             serverArmorRestrictions = payload.armorRestrictions();
             serverPotionRestrictions = payload.potionRestrictions();
             serverItemRestrictions = payload.itemRestrictions();
@@ -163,11 +168,9 @@ public class ClientPayloadHandler {
         });
     }
 
-    public static void handleInspectJournal(com.player.journal.network.InspectJournalPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
-                com.player.journal.client.ClientSetup.openInspectScreen(payload);
-            }
+    public static void handleInspectJournal(InspectJournalPayload payload, ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
+            ClientSetup.openInspectScreen(payload);
         });
     }
 
@@ -177,9 +180,8 @@ public class ClientPayloadHandler {
         public final String name;
         public final ResourceLocation skin;
         public final boolean inRange;
-        public final float hp; // --- FIXED: properly declared as a class variable
+        public final float hp;
 
-        // --- FIXED: float hp added to the constructor arguments
         public PartyMember(String name, ResourceLocation skin, boolean inRange, float hp) {
             this.name = name;
             this.skin = skin;
@@ -188,10 +190,10 @@ public class ClientPayloadHandler {
         }
     }
 
-    public static void handlePartySync(final SyncPartyPayload payload, final IPayloadContext context) {
-        context.enqueueWork(() -> {
+    public static void handlePartySync(final SyncPartyPayload payload, final ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
             partyMembers.clear();
-            Minecraft mc = Minecraft.getInstance();
+            Minecraft mc = context.client();
 
             for (SyncPartyPayload.PartyMemberData data : payload.roster()) {
                 ResourceLocation skinLocation;
@@ -199,7 +201,7 @@ public class ClientPayloadHandler {
                 if (mc.getConnection() != null && mc.getConnection().getPlayerInfo(data.uuid()) != null) {
                     skinLocation = mc.getConnection().getPlayerInfo(data.uuid()).getSkin().texture();
                 } else {
-                    skinLocation = mc.getSkinManager().getInsecureSkin(new com.mojang.authlib.GameProfile(data.uuid(), data.name())).texture();
+                    skinLocation = mc.getSkinManager().getInsecureSkin(new GameProfile(data.uuid(), data.name())).texture();
                 }
 
                 partyMembers.add(new PartyMember(data.name(), skinLocation, data.inRange(), data.hp()));
@@ -207,12 +209,15 @@ public class ClientPayloadHandler {
         });
     }
 
-    public static void handleReceiveInvite(com.player.journal.network.ReceivePartyInvitePayload payload, net.neoforged.neoforge.network.handling.IPayloadContext context) {
-        context.enqueueWork(() -> {
-            net.minecraft.client.multiplayer.PlayerInfo info = net.minecraft.client.Minecraft.getInstance().getConnection().getPlayerInfo(payload.inviterName());
-            net.minecraft.resources.ResourceLocation skin = info != null ? info.getSkin().texture() : net.minecraft.client.resources.DefaultPlayerSkin.get(java.util.UUID.randomUUID()).texture();
+    public static void handleReceiveInvite(ReceivePartyInvitePayload payload, ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
+            PlayerInfo info = context.client().getConnection() != null
+                    ? context.client().getConnection().getPlayerInfo(payload.inviterName())
+                    : null;
+            ResourceLocation skin = info != null
+                    ? info.getSkin().texture()
+                    : DefaultPlayerSkin.get(UUID.randomUUID()).texture();
 
-            // --- FIXED: Added 0f as a dummy HP value for the pending invite ---
             pendingInvites.add(new PartyMember(payload.inviterName(), skin, true, 0f));
         });
     }

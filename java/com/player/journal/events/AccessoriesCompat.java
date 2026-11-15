@@ -1,7 +1,6 @@
 package com.player.journal.events;
 
 import io.wispforest.accessories.api.AccessoriesCapability;
-import io.wispforest.accessories.api.AccessoriesContainer;
 import io.wispforest.accessories.api.events.CanEquipCallback;
 import io.wispforest.accessories.api.slot.SlotReference;
 import net.fabricmc.fabric.api.util.TriState;
@@ -33,7 +32,6 @@ public class AccessoriesCompat {
                 var container = entry.getValue();
 
                 for (int i = 0; i < container.getSize(); i++) {
-
                     ItemStack stack = container.getAccessories().getItem(i);
 
                     if (!stack.isEmpty()) {
@@ -41,7 +39,6 @@ public class AccessoriesCompat {
                         String failMessage = AccessoriesIntegration.getFailedRequirement(player, id);
 
                         if (failMessage != null) {
-
                             container.getAccessories().setItem(i, ItemStack.EMPTY);
 
                             if (!player.getInventory().add(stack.copy())) {

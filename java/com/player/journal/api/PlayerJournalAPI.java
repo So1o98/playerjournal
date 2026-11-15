@@ -3,30 +3,32 @@ package com.player.journal.api;
 import com.player.journal.data.JournalProgressionData;
 import com.player.journal.data.RestrictionDataLoader;
 import com.player.journal.events.JournalServerEvents;
-import com.player.journal.registry.ModAttachments;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 import com.player.journal.network.SyncJournalDataPayload;
+import com.player.journal.registry.ModAttachments;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "UnstableApiUsage"})
 public class PlayerJournalAPI {
 
-
-    private static final java.util.Map<String, java.util.Map<String, Integer>> CUSTOM_USAGE_RESTRICTIONS = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, java.util.Map<String, Integer>> CUSTOM_INTERACT_RESTRICTIONS = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, java.util.Map<String, Integer>> CUSTOM_CRAFTING_RESTRICTIONS = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, Float> CUSTOM_CRAFTING_XP = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, java.util.Map<String, Integer>> CUSTOM_BLOCK_RESTRICTIONS = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, Float> CUSTOM_BLOCK_XP = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Integer>> CUSTOM_USAGE_RESTRICTIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Integer>> CUSTOM_INTERACT_RESTRICTIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Integer>> CUSTOM_CRAFTING_RESTRICTIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Float> CUSTOM_CRAFTING_XP = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Integer>> CUSTOM_BLOCK_RESTRICTIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Float> CUSTOM_BLOCK_XP = new ConcurrentHashMap<>();
 
     /**
      * Allows other mods to restrict an item's usage via Java code.
      */
     public static void registerUsageRestriction(String itemId, String skill, int requiredLevel) {
-        CUSTOM_USAGE_RESTRICTIONS.computeIfAbsent(itemId, k -> new java.util.HashMap<>())
+        CUSTOM_USAGE_RESTRICTIONS.computeIfAbsent(itemId, k -> new HashMap<>())
                 .put(skill.toLowerCase(), requiredLevel);
     }
 
@@ -34,7 +36,7 @@ public class PlayerJournalAPI {
      * Allows other mods to restrict interacting with an item (e.g., right-clicking) via Java code.
      */
     public static void registerInteractRestriction(String itemId, String skill, int requiredLevel) {
-        CUSTOM_INTERACT_RESTRICTIONS.computeIfAbsent(itemId, k -> new java.util.HashMap<>())
+        CUSTOM_INTERACT_RESTRICTIONS.computeIfAbsent(itemId, k -> new HashMap<>())
                 .put(skill.toLowerCase(), requiredLevel);
     }
 
@@ -42,7 +44,7 @@ public class PlayerJournalAPI {
      * Allows other mods to restrict an item's crafting via Java code, and set an XP reward.
      */
     public static void registerCraftingRestriction(String itemId, String skill, int requiredLevel, float xpReward) {
-        CUSTOM_CRAFTING_RESTRICTIONS.computeIfAbsent(itemId, k -> new java.util.HashMap<>())
+        CUSTOM_CRAFTING_RESTRICTIONS.computeIfAbsent(itemId, k -> new HashMap<>())
                 .put(skill.toLowerCase(), requiredLevel);
         if (xpReward > 0) {
             CUSTOM_CRAFTING_XP.put(itemId, xpReward);
@@ -53,62 +55,57 @@ public class PlayerJournalAPI {
      * Allows other mods to restrict block breaking/harvesting via Java code, and set an XP reward.
      */
     public static void registerBlockRestriction(String blockId, String skill, int requiredLevel, float xpReward) {
-        CUSTOM_BLOCK_RESTRICTIONS.computeIfAbsent(blockId, k -> new java.util.HashMap<>())
+        CUSTOM_BLOCK_RESTRICTIONS.computeIfAbsent(blockId, k -> new HashMap<>())
                 .put(skill.toLowerCase(), requiredLevel);
         if (xpReward > 0) {
             CUSTOM_BLOCK_XP.put(blockId, xpReward);
         }
     }
 
-
-    public static java.util.Map<String, Integer> getCustomUsage(String itemId) {
-        return CUSTOM_USAGE_RESTRICTIONS.getOrDefault(itemId, java.util.Collections.emptyMap());
+    public static Map<String, Integer> getCustomUsage(String itemId) {
+        return CUSTOM_USAGE_RESTRICTIONS.getOrDefault(itemId, Collections.emptyMap());
     }
 
-    public static java.util.Map<String, Integer> getCustomInteract(String itemId) {
-        return CUSTOM_INTERACT_RESTRICTIONS.getOrDefault(itemId, java.util.Collections.emptyMap());
+    public static Map<String, Integer> getCustomInteract(String itemId) {
+        return CUSTOM_INTERACT_RESTRICTIONS.getOrDefault(itemId, Collections.emptyMap());
     }
 
-    public static java.util.Map<String, Integer> getCustomCrafting(String itemId) {
-        return CUSTOM_CRAFTING_RESTRICTIONS.getOrDefault(itemId, java.util.Collections.emptyMap());
+    public static Map<String, Integer> getCustomCrafting(String itemId) {
+        return CUSTOM_CRAFTING_RESTRICTIONS.getOrDefault(itemId, Collections.emptyMap());
     }
 
     public static float getCustomCraftingXp(String itemId) {
         return CUSTOM_CRAFTING_XP.getOrDefault(itemId, 0f);
     }
 
-    public static java.util.Map<String, Integer> getCustomBlockUsage(String blockId) {
-        return CUSTOM_BLOCK_RESTRICTIONS.getOrDefault(blockId, java.util.Collections.emptyMap());
+    public static Map<String, Integer> getCustomBlockUsage(String blockId) {
+        return CUSTOM_BLOCK_RESTRICTIONS.getOrDefault(blockId, Collections.emptyMap());
     }
 
     public static float getCustomBlockXp(String blockId) {
         return CUSTOM_BLOCK_XP.getOrDefault(blockId, 0f);
     }
 
-
-
     /**
      * Returns all custom code-registered item usage restrictions.
      */
-    public static java.util.Map<String, java.util.Map<String, Integer>> getAllCustomUsageRestrictions() {
-        return java.util.Collections.unmodifiableMap(CUSTOM_USAGE_RESTRICTIONS);
+    public static Map<String, Map<String, Integer>> getAllCustomUsageRestrictions() {
+        return Collections.unmodifiableMap(CUSTOM_USAGE_RESTRICTIONS);
     }
 
     /**
      * Returns all custom code-registered item interact restrictions.
      */
-    public static java.util.Map<String, java.util.Map<String, Integer>> getAllCustomInteractRestrictions() {
-        return java.util.Collections.unmodifiableMap(CUSTOM_INTERACT_RESTRICTIONS);
+    public static Map<String, Map<String, Integer>> getAllCustomInteractRestrictions() {
+        return Collections.unmodifiableMap(CUSTOM_INTERACT_RESTRICTIONS);
     }
 
     /**
      * Returns all custom code-registered block restrictions.
      */
-    public static java.util.Map<String, java.util.Map<String, Integer>> getAllCustomBlockRestrictions() {
-        return java.util.Collections.unmodifiableMap(CUSTOM_BLOCK_RESTRICTIONS);
+    public static Map<String, Map<String, Integer>> getAllCustomBlockRestrictions() {
+        return Collections.unmodifiableMap(CUSTOM_BLOCK_RESTRICTIONS);
     }
-
-
 
     /**
      * Safely retrieves a player's level for a specific skill.
@@ -117,7 +114,7 @@ public class PlayerJournalAPI {
     public static int getPlayerLevel(Player player, String skillName) {
         if (player.level().isClientSide()) return 0;
 
-        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        JournalProgressionData data = player.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
         if (data == null) return 0;
 
         return switch (skillName.toLowerCase()) {
@@ -149,7 +146,7 @@ public class PlayerJournalAPI {
     public static int getTornPagesBalance(Player player) {
         if (player.level().isClientSide()) return 0;
 
-        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        JournalProgressionData data = player.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
         return data != null ? data.getTornPages() : 0;
     }
 
@@ -167,7 +164,7 @@ public class PlayerJournalAPI {
     }
 
     public static void grantCustomXp(ServerPlayer player, String skillName, float amount) {
-        JournalProgressionData data = player.getData(ModAttachments.JOURNAL_DATA);
+        JournalProgressionData data = player.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
         if (data == null) return;
 
         if (!hasUnlockedPage(player, skillName)) return;
@@ -189,6 +186,8 @@ public class PlayerJournalAPI {
         }
 
         if (finalXp > 0) {
+            player.setAttached(ModAttachments.JOURNAL_DATA_TYPE, data);
+
             SyncJournalDataPayload payload = new SyncJournalDataPayload(
                     data.getVitalityLevel(), data.getVitalityXP(),
                     data.getCombatLevel(), data.getCombatXP(),
@@ -203,11 +202,12 @@ public class PlayerJournalAPI {
                     data.getTornPages(),
                     data.getResearchedItems()
             );
-            PacketDistributor.sendToPlayer(player, payload);
+            ServerPlayNetworking.send(player, payload);
 
             JournalServerEvents.sharePartyXP(player, skillName.toLowerCase(), finalXp);
         }
     }
+
     public static void clearAllCustomRestrictionsForClient() {
         CUSTOM_USAGE_RESTRICTIONS.clear();
         CUSTOM_INTERACT_RESTRICTIONS.clear();

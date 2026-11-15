@@ -1,7 +1,11 @@
 package com.player.journal.block;
 
+import com.mojang.serialization.MapCodec;
+import com.player.journal.block.entity.ResearchBenchBlockEntity;
+import com.player.journal.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -13,23 +17,25 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
-
-// 1. Now extends BaseEntityBlock so it can hold an inventory and tick
 public class ResearchBenchBlock extends BaseEntityBlock {
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final BooleanProperty RIGHT_HALF = BooleanProperty.create("right_half");
 
-    public static final com.mojang.serialization.MapCodec<ResearchBenchBlock> CODEC = simpleCodec(ResearchBenchBlock::new);
+    public static final MapCodec<ResearchBenchBlock> CODEC = simpleCodec(ResearchBenchBlock::new);
 
     @Override
-    protected com.mojang.serialization.MapCodec<ResearchBenchBlock> codec() {
+    protected MapCodec<ResearchBenchBlock> codec() {
         return CODEC;
     }
 
@@ -40,15 +46,13 @@ public class ResearchBenchBlock extends BaseEntityBlock {
                 .setValue(RIGHT_HALF, false));
     }
 
-    // 2. REQUIRED: Tells the game to attach your inventory to the left half!
     @Nullable
     @Override
-    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         if (state.getValue(RIGHT_HALF)) return null;
-        return new com.player.journal.block.entity.ResearchBenchBlockEntity(pos, state);
+        return new ResearchBenchBlockEntity(pos, state);
     }
 
-    // 3. REQUIRED: Tells BaseEntityBlock to still render your Blockbench JSON model
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
@@ -82,7 +86,6 @@ public class ResearchBenchBlock extends BaseEntityBlock {
         }
     }
 
-    // 4. Fixed return type to BlockState for 1.21.1
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         boolean isRightHalf = state.getValue(RIGHT_HALF);
@@ -115,27 +118,27 @@ public class ResearchBenchBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, net.minecraft.world.phys.BlockHitResult hitResult) {
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide) {
             boolean isRightHalf = state.getValue(RIGHT_HALF);
             Direction facing = state.getValue(FACING);
 
             BlockPos targetPos = isRightHalf ? pos.relative(facing.getClockWise()) : pos;
 
-            net.minecraft.world.level.block.entity.BlockEntity blockEntity = level.getBlockEntity(targetPos);
-            if (blockEntity instanceof com.player.journal.block.entity.ResearchBenchBlockEntity menuProvider) {
-                player.openMenu(menuProvider, targetPos);
+            BlockEntity blockEntity = level.getBlockEntity(targetPos);
+            if (blockEntity instanceof ResearchBenchBlockEntity menuProvider) {
+                player.openMenu(menuProvider);
             }
         }
-        return net.minecraft.world.InteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     @Nullable
     @Override
-    public <T extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide() || state.getValue(RIGHT_HALF)) {
             return null;
         }
-        return createTickerHelper(type, com.player.journal.registry.ModBlockEntities.RESEARCH_BENCH.get(), com.player.journal.block.entity.ResearchBenchBlockEntity::serverTick);
+        return createTickerHelper(type, ModBlockEntities.RESEARCH_BENCH.get(), ResearchBenchBlockEntity::serverTick);
     }
 }

@@ -3,6 +3,8 @@ package com.player.journal.item;
 import com.player.journal.data.JournalProgressionData;
 import com.player.journal.network.SyncJournalDataPayload;
 import com.player.journal.registry.ModAttachments;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -11,10 +13,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.network.PacketDistributor;
 
+@SuppressWarnings("UnstableApiUsage")
 public class TornPageItem extends Item {
 
     public TornPageItem(Properties properties) {
@@ -26,13 +26,12 @@ public class TornPageItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
 
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            JournalProgressionData data = serverPlayer.getData(ModAttachments.JOURNAL_DATA);
+            JournalProgressionData data = serverPlayer.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
 
             data.addTornPages(1);
-            serverPlayer.setData(ModAttachments.JOURNAL_DATA, data);
+            serverPlayer.setAttached(ModAttachments.JOURNAL_DATA_TYPE, data);
 
-
-            PacketDistributor.sendToPlayer(serverPlayer, new SyncJournalDataPayload(
+            ServerPlayNetworking.send(serverPlayer, new SyncJournalDataPayload(
                     data.getVitalityLevel(), data.getVitalityXP(),
                     data.getCombatLevel(), data.getCombatXP(),
                     data.getDefenseLevel(), data.getDefenseXP(),

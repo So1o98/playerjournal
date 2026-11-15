@@ -1,27 +1,34 @@
 package com.player.journal;
 
+import com.player.journal.command.JournalCommands;
+import com.player.journal.config.JournalConfig;
+import com.player.journal.events.AccessoriesIntegration;
+import com.player.journal.events.JournalServerEvents;
+import com.player.journal.network.ModNetworking;
 import com.player.journal.registry.*;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
+import net.fabricmc.api.ModInitializer;
 
-@Mod("playerjournal")
-public class PlayerJournal {
+public class PlayerJournal implements ModInitializer {
+    public static final String MOD_ID = "playerjournal";
 
-    public PlayerJournal(IEventBus modEventBus, ModContainer modContainer) {
-        ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
-        ModItems.ITEMS.register(modEventBus);
-        ModCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
-        ModEffects.EFFECTS.register(modEventBus);
-        com.player.journal.registry.ModBlocks.BLOCKS.register(modEventBus);
-        com.player.journal.registry.ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
-        com.player.journal.registry.ModMenuTypes.MENUS.register(modEventBus);
+    @Override
+    public void onInitialize() {
+
+        JournalConfig.load();
 
 
-        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.COMMON, com.player.journal.config.JournalConfig.SPEC);
+        ModAttachments.register();
+        ModBlocks.register();
+        ModBlockEntities.register();
+        ModItems.register();
+        ModCreativeTabs.register();
+        ModEffects.register();
+        ModMenuTypes.register();
 
-        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
-            com.player.journal.client.ClientSetup.setupConfigScreen(modContainer);
-        }
+
+        ModNetworking.registerCommon();
+        JournalCommands.register();
+        JournalServerEvents.register();
+        AccessoriesIntegration.register();
     }
 }

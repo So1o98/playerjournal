@@ -1,33 +1,56 @@
 package com.player.journal.inventory;
 
 import com.player.journal.block.entity.ResearchBenchBlockEntity;
+import com.player.journal.registry.ModBlocks;
+import com.player.journal.registry.ModMenuTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.items.SlotItemHandler;
 
 public class ResearchBenchMenu extends AbstractContainerMenu {
 
     private final ResearchBenchBlockEntity blockEntity;
-    private final net.minecraft.world.inventory.ContainerData data;
+    private final ContainerData data;
 
-    public ResearchBenchMenu(int containerId, Inventory playerInventory, net.minecraft.network.FriendlyByteBuf extraData) {
-        this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(extraData.readBlockPos()), new net.minecraft.world.inventory.SimpleContainerData(2));
+
+    public ResearchBenchMenu(int containerId, Inventory playerInventory, BlockPos pos) {
+        this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(pos), new SimpleContainerData(2));
     }
 
-    public ResearchBenchMenu(int containerId, Inventory playerInventory, BlockEntity entity, net.minecraft.world.inventory.ContainerData data) {
-        // NOTE: Verify your registry reference for ModMenus.RESEARCH_BENCH matches your code
-        super(com.player.journal.registry.ModMenuTypes.RESEARCH_BENCH.get(), containerId);
+    public ResearchBenchMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
+        this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(extraData.readBlockPos()), new SimpleContainerData(2));
+    }
+
+    public ResearchBenchMenu(int containerId, Inventory playerInventory, BlockEntity entity, ContainerData data) {
+        super(ModMenuTypes.RESEARCH_BENCH.get(), containerId);
         this.blockEntity = (ResearchBenchBlockEntity) entity;
         this.data = data;
 
         this.addDataSlots(this.data);
 
-        this.addSlot(new SlotItemHandler(this.blockEntity.getItemHandler(), 0, 43, 35));
-        this.addSlot(new SlotItemHandler(this.blockEntity.getItemHandler(), 1, 112, 35));
+
+        this.addSlot(new Slot(this.blockEntity.getItemHandler(), 0, 43, 35) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return blockEntity.getItemHandler().canPlaceItem(0, stack);
+            }
+        });
+
+
+        this.addSlot(new Slot(this.blockEntity.getItemHandler(), 1, 112, 35) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return blockEntity.getItemHandler().canPlaceItem(1, stack);
+            }
+        });
 
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 9; ++col) {
@@ -52,8 +75,7 @@ public class ResearchBenchMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        // NOTE: Verify your registry reference for ModBlocks.RESEARCH_BENCH matches your code
-        return stillValid(net.minecraft.world.inventory.ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos()), player, com.player.journal.registry.ModBlocks.RESEARCH_BENCH.get());
+        return stillValid(ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos()), player, ModBlocks.RESEARCH_BENCH.get());
     }
 
     @Override

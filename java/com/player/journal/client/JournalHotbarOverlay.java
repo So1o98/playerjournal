@@ -23,7 +23,7 @@ public class JournalHotbarOverlay {
         guiGraphics.renderItem(new ItemStack(Items.BOOK), x, y);
 
 
-        String keyName = JournalKeybindings.OPEN_JOURNAL_KEY.getTranslatedKeyMessage().getString().toUpperCase();
+        String keyName = com.player.journal.client.JournalKeybindings.OPEN_JOURNAL_KEY.getTranslatedKeyMessage().getString().toUpperCase();
 
 
         guiGraphics.pose().pushPose();

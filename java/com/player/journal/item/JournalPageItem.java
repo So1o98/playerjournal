@@ -3,6 +3,7 @@ package com.player.journal.item;
 import com.player.journal.data.JournalProgressionData;
 import com.player.journal.network.SyncJournalDataPayload;
 import com.player.journal.registry.ModAttachments;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -13,8 +14,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
 
+@SuppressWarnings("UnstableApiUsage")
 public class JournalPageItem extends Item {
 
     public enum SkillType { FARMING, MINING, SMITHING, ARCHERY, FISHING }
@@ -32,7 +33,7 @@ public class JournalPageItem extends Item {
 
         if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
 
-            JournalProgressionData data = serverPlayer.getData(ModAttachments.JOURNAL_DATA);
+            JournalProgressionData data = serverPlayer.getAttachedOrCreate(ModAttachments.JOURNAL_DATA_TYPE);
             boolean alreadyUnlocked = false;
 
             switch (this.skillType) {
@@ -54,6 +55,8 @@ public class JournalPageItem extends Item {
             level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
             serverPlayer.displayClientMessage(Component.literal("New journal page unlocked!"), true);
 
+            serverPlayer.setAttached(ModAttachments.JOURNAL_DATA_TYPE, data);
+
             SyncJournalDataPayload payload = new SyncJournalDataPayload(
                     data.getVitalityLevel(), data.getVitalityXP(),
                     data.getCombatLevel(), data.getCombatXP(),
@@ -68,7 +71,7 @@ public class JournalPageItem extends Item {
                     data.getTornPages(),
                     data.getResearchedItems()
             );
-            PacketDistributor.sendToPlayer(serverPlayer, payload);
+            ServerPlayNetworking.send(serverPlayer, payload);
 
             data.syncPlayerHealth(serverPlayer);
 

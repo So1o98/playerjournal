@@ -1,5 +1,6 @@
 package com.player.journal.network;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -14,7 +15,7 @@ public record SyncPartyPayload(List<PartyMemberData> roster) implements CustomPa
     public static final CustomPacketPayload.Type<SyncPartyPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("playerjournal", "sync_party"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, PartyMemberData> MEMBER_CODEC = StreamCodec.composite(
-            net.minecraft.core.UUIDUtil.STREAM_CODEC, PartyMemberData::uuid,
+            UUIDUtil.STREAM_CODEC, PartyMemberData::uuid,
             ByteBufCodecs.STRING_UTF8, PartyMemberData::name,
             ByteBufCodecs.BOOL, PartyMemberData::inRange,
             ByteBufCodecs.FLOAT, PartyMemberData::hp,
